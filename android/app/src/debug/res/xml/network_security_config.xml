@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug builds only: allow plain HTTP so the app can reach a local development API
+  (http://10.0.2.2:4000 from the emulator, or your computer's LAN IP from a phone).
+  This file replaces the release config for the debug variant and is never packaged in release builds.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

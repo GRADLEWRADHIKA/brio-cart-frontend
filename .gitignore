@@ -1,0 +1,27 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+!.env.native
+!.env.native.example
+test-results/
+playwright-report/
+e2e/.admin.json
+# Android build outputs (project itself is committed)
+android/app/build/
+android/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/release/
+*.keystore
+*.jks
+keystore.properties
+artifacts/android/*.apk
+artifacts/android/*.aab
+
+# Locally generated demo credentials
+*.local.md

@@ -1,0 +1,256 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------
+   Brio Cart design system
+   Deep botanical green · leaf · mint · warm ivory · charcoal
+   + natural produce accents (tomato, turmeric, marigold, berry, sky)
+   ------------------------------------------------------------------ */
+@theme {
+  --font-display: 'Fraunces Variable', 'Noto Serif Devanagari', Georgia, serif;
+  --font-sans: 'Manrope Variable', 'Noto Sans Devanagari', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-deva: 'Noto Serif Devanagari', 'Noto Sans Devanagari', serif;
+
+  --color-forest-950: #071b11;
+  --color-forest-900: #0c2a1b;
+  --color-forest-800: #113a25;
+  --color-forest-700: #17492f;
+  --color-forest-600: #1f6040;
+  --color-leaf-600: #2e7d4f;
+  --color-leaf-500: #3d9a62;
+  --color-leaf-400: #5fb57f;
+  --color-lime-300: #c8e86b;
+  --color-lime-200: #dcf29c;
+  --color-mint-200: #cfe8d6;
+  --color-mint-100: #e3f2e7;
+  --color-mint-50: #f0f8f2;
+  --color-ivory-50: #fdfbf6;
+  --color-ivory-100: #faf6ec;
+  --color-ivory-200: #f3ecdb;
+  --color-ivory-300: #e9dfc6;
+  --color-charcoal-900: #17201b;
+  --color-charcoal-700: #3a463f;
+  --color-charcoal-500: #5f6b64;
+  --color-charcoal-400: #86918a;
+  --color-line: #e7e0cf;
+
+  --color-tomato-500: #e0452f;
+  --color-tomato-100: #fde5df;
+  --color-turmeric-400: #f4b52c;
+  --color-turmeric-100: #fdf0cc;
+  --color-marigold-500: #f08a12;
+  --color-marigold-100: #fde4c4;
+  --color-berry-600: #8b1d4a;
+  --color-berry-100: #f7dde8;
+  --color-sky-100: #e1eef8;
+  --color-peach-100: #fde6d6;
+  --color-kumkum-700: #7a1420;
+  --color-kumkum-800: #5c0d18;
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.375rem;
+  --radius-3xl: 2rem;
+
+  --shadow-soft: 0 1px 2px rgb(23 32 27 / 0.04), 0 4px 16px -4px rgb(23 32 27 / 0.08);
+  --shadow-lift: 0 2px 4px rgb(23 32 27 / 0.04), 0 18px 40px -12px rgb(12 42 27 / 0.22);
+  --shadow-plate: 0 30px 60px -20px rgb(4 20 12 / 0.55), 0 8px 18px -8px rgb(4 20 12 / 0.35);
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-float-slow: float 9s ease-in-out infinite;
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-fade-up: fade-up 0.7s var(--ease-out-expo) both;
+  --animate-pop: pop 0.35s var(--ease-spring);
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-sway: sway 4s ease-in-out infinite;
+  --animate-flicker: flicker 2.4s ease-in-out infinite;
+
+  @keyframes float {
+    0%, 100% { transform: translate3d(0, 0, 0) rotate(var(--r, 0deg)); }
+    50% { transform: translate3d(0, -14px, 0) rotate(calc(var(--r, 0deg) + 2deg)); }
+  }
+  @keyframes marquee {
+    from { transform: translate3d(0, 0, 0); }
+    to { transform: translate3d(-50%, 0, 0); }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translate3d(0, 18px, 0); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes pop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  @keyframes shimmer {
+    from { background-position: -400px 0; }
+    to { background-position: 400px 0; }
+  }
+  @keyframes sway {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+  }
+  @keyframes flicker {
+    0%, 100% { transform: scaleY(1) translateY(0); opacity: 1; }
+    30% { transform: scaleY(1.12) translateY(-1px); opacity: 0.92; }
+    60% { transform: scaleY(0.94) translateY(0.5px); opacity: 1; }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+    /* Keep focused/scrolled-to elements clear of the sticky header and the mobile tab bar. */
+    scroll-padding-top: 8rem;
+    scroll-padding-bottom: 5.5rem;
+  }
+  @media (min-width: 768px) {
+    html {
+      scroll-padding-bottom: 1rem;
+    }
+  }
+  body {
+    @apply bg-ivory-50 font-sans text-charcoal-900 antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+  }
+  :focus-visible {
+    outline: 2.5px solid var(--color-leaf-500);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  ::selection {
+    background: var(--color-lime-300);
+    color: var(--color-forest-900);
+  }
+  [lang='hi'] {
+    font-family: var(--font-deva);
+    letter-spacing: 0;
+  }
+  img {
+    -webkit-user-drag: none;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Display type with Fraunces' soft, wonky optical axis */
+  .display-soft {
+    font-variation-settings: 'SOFT' 100, 'WONK' 1;
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-[0.72rem] font-extrabold uppercase tracking-[0.18em];
+  }
+
+  /* White product shots dissolve into whatever tinted surface they sit on. */
+  .produce-blend {
+    mix-blend-mode: multiply;
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, var(--color-ivory-200) 0%, var(--color-ivory-100) 40%, var(--color-ivory-200) 80%);
+    background-size: 800px 100%;
+    @apply animate-shimmer rounded-xl;
+  }
+
+  /* Fine film grain for dark surfaces — adds depth without gradients. */
+  .grain {
+    position: relative;
+    isolation: isolate;
+  }
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.09;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* ---------- Delivery map markers ---------- */
+.brio-map .leaflet-tile-pane {
+  filter: saturate(0.75) contrast(1.02);
+}
+.brio-pin {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  border: 3px solid #fff;
+  box-shadow: 0 10px 24px -8px rgb(4 20 12 / 0.55);
+}
+.brio-pin.is-store {
+  background: #113a25;
+  color: #c8e86b;
+}
+.brio-pin.is-home {
+  background: #e0452f;
+  color: #fff;
+}
+.brio-pin.is-rider {
+  width: 48px;
+  height: 48px;
+  background: #c8e86b;
+  color: #0c2a1b;
+}
+.brio-pulse {
+  position: absolute;
+  inset: -10px;
+  border-radius: 9999px;
+  background: rgb(200 232 107 / 0.45);
+  animation: brio-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+  z-index: -1;
+}
+@keyframes brio-ping {
+  75%,
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brio Cart brand: deep botanical green / leaf / lime -->
+    <color name="colorPrimary">#113A25</color>
+    <color name="colorPrimaryDark">#0C2A1B</color>
+    <color name="colorAccent">#C8E86B</color>
+    <color name="brioForest">#0F3D26</color>
+</resources>
