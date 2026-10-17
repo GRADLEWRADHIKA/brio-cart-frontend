@@ -19,7 +19,7 @@
     "cap:sync": "npm run build:native && cap sync android",
     "android:debug": "node scripts/build-android.mjs debug",
     "android:release": "node scripts/build-android.mjs release",
-    "assets:generate": "node scripts/generate-brand-assets.mjs && capacitor-assets generate --android --iconBackgroundColor \"#0f3d26\" --iconBackgroundColorDark \"#0f3d26\" --splashBackgroundColor \"#0f3d26\" --splashBackgroundColorDark \"#0b2a1b\""
+    "assets:generate": "capacitor-assets generate --android --iconBackgroundColor \"#ffffff\" --iconBackgroundColorDark \"#ffffff\" --splashBackgroundColor \"#ffffff\" --splashBackgroundColorDark \"#142f6b\""
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.1",
