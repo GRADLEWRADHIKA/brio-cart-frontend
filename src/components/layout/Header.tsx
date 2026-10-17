@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { Home, LayoutGrid, Menu, Search, ShoppingBag, User, X } from 'lucide-react';
+import { Bike, Home, LayoutDashboard, LayoutGrid, Menu, Search, ShoppingBag, User, X } from 'lucide-react';
+import { homePathFor, type Role } from '@shared/core';
+import { NotificationBell } from '@/components/notifications/Notifications';
 import { useCart, selectCount } from '@/store/cart';
 import { useUi } from '@/store/ui';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,6 +30,13 @@ function CartButton({ className }: { className?: string }) {
       </span>
     </button>
   );
+}
+
+/** Account link per role: customers see their account, staff and riders their own area. */
+function accountLink(role: Role | undefined) {
+  if (!role) return { to: '/login', label: 'Sign in', icon: User };
+  if (role === 'CUSTOMER') return { to: '/account', label: 'My account', icon: User };
+  return { to: homePathFor(role), label: role === 'RIDER' ? 'Rider dashboard' : 'Store dashboard', icon: role === 'RIDER' ? Bike : LayoutDashboard };
 }
 
 function AnnouncementBar() {
@@ -88,13 +97,16 @@ export function Header() {
             <button type="button" className="grid size-11 place-items-center rounded-full hover:bg-ivory-200 md:hidden" onClick={() => setSearchOpen(true)} aria-label="Search">
               <Search className="size-5" />
             </button>
-            <Link
-              to={user ? '/account' : '/login'}
-              className="hidden h-12 items-center gap-2 rounded-full px-4 font-bold text-forest-800 transition hover:bg-ivory-200 sm:inline-flex"
-            >
-              <User className="size-5" />
-              <span className="max-w-28 truncate">{user ? user.name.split(' ')[0] : 'Sign in'}</span>
-            </Link>
+            <NotificationBell />
+            {(() => {
+              const link = accountLink(user?.role);
+              return (
+                <Link to={link.to} className="hidden h-12 items-center gap-2 rounded-full px-4 font-bold text-forest-800 transition hover:bg-ivory-200 sm:inline-flex">
+                  <link.icon className="size-5" />
+                  <span className="max-w-28 truncate">{user ? (user.role === 'CUSTOMER' ? user.name.split(' ')[0] : link.label) : 'Sign in'}</span>
+                </Link>
+              );
+            })()}
             <CartButton />
           </div>
         </div>
@@ -177,7 +189,8 @@ function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
             ...(categories ?? []).map((c) => ({ to: `/shop?category=${c.slug}`, label: c.name })),
             { to: '/shop?collection=essentials', label: 'Daily Essentials' },
             { to: '/track', label: 'Track an order' },
-            { to: user ? '/account' : '/login', label: user ? 'My account' : 'Sign in / Register' },
+            user ? { to: accountLink(user.role).to, label: accountLink(user.role).label } : { to: '/login', label: 'Sign in / Register' },
+            ...(user?.role === 'CUSTOMER' ? [{ to: '/notifications', label: 'Notifications' }] : []),
             { to: '/help', label: 'Help & contact' },
           ].map((i) => (
             <li key={i.to + i.label}>
@@ -232,8 +245,8 @@ export function MobileTabBar() {
           </span>
           Cart
         </button>
-        <NavLink to={user ? '/account' : '/login'} className={tab}>
-          <User className="size-[1.35rem]" /> {user ? 'Account' : 'Sign in'}
+        <NavLink to={accountLink(user?.role).to} className={tab}>
+          <User className="size-[1.35rem]" /> {user ? (user.role === 'CUSTOMER' ? 'Account' : 'Dashboard') : 'Sign in'}
         </NavLink>
       </div>
     </nav>

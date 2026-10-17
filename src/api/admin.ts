@@ -1,4 +1,4 @@
-import type { OrderStatus } from '@shared/core';
+import type { OrderStatus, RiderStatus, Role } from '@shared/core';
 import { api, request } from './client';
 import type { Order, Product } from '@/types';
 
@@ -63,6 +63,8 @@ export interface AdminSettings {
   demoMode: boolean;
   storeLat: number;
   storeLng: number;
+  /** Rupees paid to the rider per completed delivery. */
+  riderPayoutPerDelivery: number;
 }
 
 export interface AdminCampaign {
@@ -117,8 +119,10 @@ export const adminApi = {
   product: (id: string) => api.get<{ product: AdminProduct }>(`/admin/products/${id}`).then((r) => r.product),
   createProduct: (p: ProductPayload) => api.post<{ product: AdminProduct }>('/admin/products', p).then((r) => r.product),
   updateProduct: (id: string, p: ProductPayload) => api.put<{ product: AdminProduct }>(`/admin/products/${id}`, p).then((r) => r.product),
-  archiveProduct: (id: string) => api.delete<{ ok: true }>(`/admin/products/${id}`),
-  patchVariant: (id: string, data: Partial<{ isAvailable: boolean; stockQty: number; trackInventory: boolean }>) => api.patch(`/admin/variants/${id}`, data),
+  /** Soft delete (super admin): hidden from the store, kept in past orders. */
+  deleteProduct: (id: string) => api.delete<{ ok: true }>(`/admin/products/${id}`),
+  /** Stock and price (rupees) edits, allowed for admins. */
+  patchVariant: (id: string, data: Partial<{ isAvailable: boolean; stockQty: number; trackInventory: boolean; price: number }>) => api.patch(`/admin/variants/${id}`, data),
   upload: (file: File) => {
     const fd = new FormData();
     fd.append('image', file);
@@ -127,6 +131,7 @@ export const adminApi = {
 
   categories: () => api.get<{ items: AdminCategory[] }>('/admin/categories').then((r) => r.items),
   saveCategory: (c: Partial<AdminCategory>, id?: string) => (id ? api.put(`/admin/categories/${id}`, c) : api.post('/admin/categories', c)),
+  deleteCategory: (id: string) => api.delete<{ ok: true }>(`/admin/categories/${id}`),
 
   areas: () => api.get<{ items: AdminArea[] }>('/admin/areas').then((r) => r.items),
   saveArea: (a: { name: string; pincode: string | null; isActive: boolean; sortOrder: number; lat?: number | null; lng?: number | null }, id?: string) => (id ? api.put(`/admin/areas/${id}`, a) : api.post('/admin/areas', a)),
@@ -136,7 +141,15 @@ export const adminApi = {
 
   campaigns: () => api.get<{ items: AdminCampaign[]; now: string }>('/admin/campaigns'),
   saveCampaign: (c: Omit<AdminCampaign, 'id' | 'slug'>, id?: string) => (id ? api.put(`/admin/campaigns/${id}`, c) : api.post('/admin/campaigns', c)),
-  riders: () => api.get<{ items: AdminRider[] }>('/admin/riders').then((r) => r.items),
+  riders: (status?: RiderStatus) => api.get<{ items: AdminRider[] }>('/admin/riders', { status }).then((r) => r.items),
+  approveRider: (id: string) => api.post<{ rider: AdminRider }>(`/admin/riders/${id}/approve`),
+  rejectRider: (id: string, reason?: string) => api.post<{ rider: AdminRider }>(`/admin/riders/${id}/reject`, { reason }),
+  resetOtp: (orderId: string) => api.post<{ order: Order }>(`/admin/orders/${orderId}/otp-reset`).then((r) => r.order),
+  users: (q: { q?: string; role?: Role; page?: number }) => api.get<{ items: AdminUser[]; total: number; page: number; totalPages: number }>('/admin/users', q),
+  createUser: (d: { name: string; phone: string; email?: string; password: string; role: Role; vehicleNumber?: string }) => api.post<{ user: AdminUser }>('/admin/users', d),
+  updateUser: (id: string, d: { isActive?: boolean; role?: Role }) => api.patch<{ user: AdminUser }>(`/admin/users/${id}`, d),
+  forceLogout: (id: string) => api.post<{ ok: true }>(`/admin/users/${id}/logout`),
+  audit: (q: { action?: string; entity?: string; page?: number }) => api.get<{ items: AuditEntry[]; total: number; page: number; totalPages: number }>('/admin/audit', q),
   createRider: (d: { name: string; phone: string; vehicleNumber?: string; password: string }) => api.post<{ rider: AdminRider }>('/admin/riders', d),
   updateRider: (id: string, d: { isActive?: boolean; vehicleNumber?: string | null }) => api.patch(`/admin/riders/${id}`, d),
   assignRider: (orderId: string, riderId: string | null) => api.patch<{ order: Order }>(`/admin/orders/${orderId}/rider`, { riderId }).then((r) => r.order),
@@ -152,7 +165,32 @@ export interface AdminRider {
   phone: string;
   vehicleNumber: string | null;
   isActive: boolean;
+  riderStatus: RiderStatus | null;
+  isOnline: boolean;
+  createdAt: string;
   activeOrders: number;
+}
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  role: Role;
+  isActive: boolean;
+  riderStatus: RiderStatus | null;
+  vehicleNumber: string | null;
+  createdAt: string;
+}
+
+export interface AuditEntry {
+  id: string;
+  action: string;
+  entity: string;
+  entityId: string | null;
+  details: unknown;
+  actor: { id: string; name: string; role: Role } | null;
+  createdAt: string;
 }
 
 export interface AdminCoupon {

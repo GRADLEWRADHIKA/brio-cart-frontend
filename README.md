@@ -25,13 +25,21 @@ BRIO_API_PROXY=http://localhost:4847 npm run dev
 `VITE_API_URL=https://api.example.in`, when the API is hosted on another domain; the API then needs that
 web origin in `CORS_ORIGINS` and `PUBLIC_BASE_URL` set.
 
+## Roles
+
+After sign-in, staff (admin and super admin) go to `/admin`, riders to `/rider` and customers to `/`.
+Routes are guarded in `src/auth/guards.tsx` and `src/auth/access.ts`, and the admin menu is filtered with the
+shared permission map (`src/shared/permissions.ts`). The API enforces the same rules. Riders sign up at
+`/rider/register` and use the rider pages from their phone's browser. Every role has a notification bell,
+polled every 30 seconds.
+
 ## Build, test, lint
 
 ```bash
 npm run build       # type-check + production build to dist/
 npm run preview     # serve dist/ on port 5848 (same /api proxy)
 npm run typecheck
-npm test            # Vitest (components, cart store, shared pricing/WhatsApp tests)
+npm test            # Vitest (components, cart store, route guards, shared pricing/WhatsApp tests)
 npm run lint
 ```
 

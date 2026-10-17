@@ -100,8 +100,9 @@ export default function ProductEditor() {
       if (fields) for (const [k, m] of Object.entries(fields)) setError(k as never, { message: m });
     },
   });
-  const archive = useMutation({
-    mutationFn: () => adminApi.archiveProduct(id!),
+  /** Soft delete: hidden from the store and this list, kept in past orders. */
+  const remove = useMutation({
+    mutationFn: () => adminApi.deleteProduct(id!),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['admin', 'products'] });
       navigate('/admin/products');
@@ -128,15 +129,16 @@ export default function ProductEditor() {
         subtitle={!isNew && product ? <a href={`/product/${product.slug}`} target="_blank" rel="noreferrer" className="underline">View in store</a> : 'Prices are entered in rupees.'}
         actions={
           <>
-            {!isNew && product?.isActive && (
-              <Button variant="outline" className="text-tomato-500" loading={archive.isPending} onClick={() => window.confirm('Archive this product? It will be hidden from customers.') && archive.mutate()}>
-                Archive
+            {!isNew && product && (
+              <Button variant="outline" className="text-tomato-500" loading={remove.isPending} onClick={() => window.confirm('Delete this product? It disappears from the store but stays in past orders.') && remove.mutate()}>
+                Delete
               </Button>
             )}
             <Button type="submit" loading={save.isPending}>{isNew ? 'Create product' : 'Save changes'}</Button>
           </>
         }
       />
+      {remove.error && <p className="mb-4 rounded-2xl bg-tomato-100 p-3 text-sm font-semibold text-tomato-500" role="alert">{(remove.error as Error).message}</p>}
       {save.error && <p className="mb-4 rounded-2xl bg-tomato-100 p-3 text-sm font-semibold text-tomato-500" role="alert">{(save.error as Error).message}</p>}
       {save.isSuccess && !formState.isDirty && <p className="mb-4 rounded-2xl bg-mint-100 p-3 text-sm font-semibold text-forest-700" role="status">Saved.</p>}
 

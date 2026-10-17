@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Bike, Phone, Sparkles, Star } from 'lucide-react';
+import { ArrowLeft, Bike, KeyRound, Phone, Sparkles, Star, TriangleAlert } from 'lucide-react';
 import { LiveTracking } from '@/components/checkout/LiveTracking';
-import { buildWhatsAppUrl, formatINR, ORDER_STATUS_LABELS, ORDER_TRANSITIONS, type OrderStatus } from '@shared/core';
+import { buildWhatsAppUrl, DELIVERY_STATUS_LABELS, formatINR, hasPermission, ORDER_STATUS_LABELS, ORDER_TRANSITIONS, type OrderStatus } from '@shared/core';
+import { useAuth } from '@/hooks/useAuth';
 import { adminApi } from '@/api/admin';
 import { Card, PageHeader } from '@/components/admin/kit';
 import { OrderStatusTracker, StatusPill } from '@/components/checkout/OrderStatusTracker';
 import { Button } from '@/components/ui/Button';
 import { ProductImage } from '@/components/ui/misc';
 import { WhatsAppIcon } from '@/components/ui/Brand';
-import { formatDate, openExternal } from '@/utils';
+import { eventLabel, formatDate, openExternal } from '@/utils';
 
 export default function OrderDetail() {
   const { id = '' } = useParams();
@@ -25,9 +26,13 @@ export default function OrderDetail() {
   };
   const status = useMutation({ mutationFn: (s: OrderStatus) => adminApi.setStatus(id, s, note || undefined), onSuccess: onDone });
   const payment = useMutation({ mutationFn: (p: 'PAID' | 'UNPAID') => adminApi.setPayment(id, p), onSuccess: onDone });
-  const riders = useQuery({ queryKey: ['admin', 'riders'], queryFn: adminApi.riders });
-  const settings = useQuery({ queryKey: ['admin', 'settings'], queryFn: adminApi.settings });
+  const { user } = useAuth();
+  // Only approved riders can be assigned; the server checks this too.
+  const riders = useQuery({ queryKey: ['admin', 'riders', 'APPROVED'], queryFn: () => adminApi.riders('APPROVED') });
+  // Store settings are super-admin only; demo mode is also reported by the live-ops endpoint all staff can read.
+  const live = useQuery({ queryKey: ['admin', 'live'], queryFn: adminApi.live, enabled: hasPermission(user?.role, 'order:view_all') });
   const assign = useMutation({ mutationFn: (riderId: string | null) => adminApi.assignRider(id, riderId), onSuccess: onDone });
+  const resetOtp = useMutation({ mutationFn: () => adminApi.resetOtp(id), onSuccess: onDone });
   const demoTrip = useMutation({ mutationFn: () => adminApi.demoTrip(id), onSuccess: onDone });
 
   if (isLoading) return <div className="skeleton h-80 rounded-3xl" />;
@@ -109,7 +114,27 @@ export default function OrderDetail() {
             </div>
           </Card>
           <Card title="Delivery partner">
-            {['DELIVERED', 'CANCELLED'].includes(o.status) ? (
+            {o.delivery.status && (
+              <p className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+                <span className="rounded-full bg-mint-100 px-2.5 py-0.5 text-xs font-extrabold uppercase text-forest-800">{DELIVERY_STATUS_LABELS[o.delivery.status]}</span>
+                {o.delivery.status === 'ASSIGNED' && <span className="text-charcoal-500">Waiting for the rider to accept</span>}
+              </p>
+            )}
+            {o.delivery.status === 'FAILED' && (
+              <p className="mb-3 flex gap-2 rounded-xl bg-tomato-100 p-2 text-sm font-semibold text-tomato-500">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {o.delivery.failReason ?? 'Delivery failed'}. Reassign a rider or cancel the order.
+              </p>
+            )}
+            {o.status === 'OUT_FOR_DELIVERY' && o.delivery.status !== 'FAILED' && (
+              <div className="mb-3 rounded-xl bg-ivory-100 p-2 text-xs text-charcoal-700">
+                {o.delivery.otpLocked ? 'Rider is locked out after wrong codes.' : o.delivery.otpExpiresAt ? `Delivery code valid until ${formatDate(o.delivery.otpExpiresAt)}.` : 'No delivery code issued yet.'}
+                <Button size="sm" variant="outline" className="mt-2 w-full" icon={<KeyRound className="size-4" />} loading={resetOtp.isPending} onClick={() => resetOtp.mutate()}>
+                  Issue a new delivery code
+                </Button>
+                {resetOtp.error && <p className="mt-1 font-semibold text-tomato-500">{(resetOtp.error as Error).message}</p>}
+              </div>
+            )}
+            {['DELIVERED', 'CANCELLED'].includes(o.status) || (o.delivery.status && ['PICKED_UP', 'OUT_FOR_DELIVERY'].includes(o.delivery.status)) ? (
               <p className="flex items-center gap-2 text-sm"><Bike className="size-4" /> {o.rider?.name ?? 'No rider recorded'}</p>
             ) : (
               <>
@@ -120,15 +145,16 @@ export default function OrderDetail() {
                   aria-label="Assign delivery partner"
                 >
                   <option value="">Unassigned</option>
+                  {o.rider && !riders.data?.some((r) => r.id === o.rider!.id) && <option value={o.rider.id}>{o.rider.name}</option>}
                   {riders.data?.filter((r) => r.isActive).map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.name} · {r.activeOrders} active
+                      {r.name} · {r.isOnline ? 'online' : 'offline'} · {r.activeOrders} active
                     </option>
                   ))}
                 </select>
-                {riders.data?.length === 0 && <p className="mt-2 text-xs text-charcoal-500">Add riders under Delivery partners.</p>}
+                {riders.data?.length === 0 && <p className="mt-2 text-xs text-charcoal-500">No approved delivery partners yet.</p>}
                 {assign.error && <p className="mt-2 text-sm font-semibold text-tomato-500">{(assign.error as Error).message}</p>}
-                {settings.data?.demoMode && (
+                {live.data?.demoMode && (
                   <Button size="sm" variant="secondary" className="mt-3 w-full" icon={<Sparkles className="size-4" />} loading={demoTrip.isPending} onClick={() => demoTrip.mutate()}>
                     Run demo delivery
                   </Button>
@@ -162,7 +188,7 @@ export default function OrderDetail() {
             <OrderStatusTracker order={o} />
             <ul className="mt-4 space-y-1 border-t border-line pt-3 text-xs text-charcoal-500">
               {o.events.map((e, i) => (
-                <li key={i}>{formatDate(e.at)} · {ORDER_STATUS_LABELS[e.status]}{e.note ? ` — ${e.note}` : ''}</li>
+                <li key={i}>{formatDate(e.at)} · {eventLabel(e.status)}{e.note ? ` — ${e.note}` : ''}</li>
               ))}
             </ul>
           </Card>

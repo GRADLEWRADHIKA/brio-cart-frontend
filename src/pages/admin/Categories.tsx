@@ -36,11 +36,21 @@ function Row({ c, onDone }: { c?: AdminCategory; onDone: () => void }) {
 }
 
 export default function Categories() {
+  const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ['admin', 'categories'], queryFn: adminApi.categories });
   const [editing, setEditing] = useState<string | null>(null);
+  // Soft delete; the server refuses while the category still has products.
+  const remove = useMutation({
+    mutationFn: adminApi.deleteCategory,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['admin', 'categories'] });
+      void qc.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
   return (
     <>
       <PageHeader title="Categories" subtitle="Inactive categories and their products are hidden from customers." actions={<Button icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>New category</Button>} />
+      {remove.error && <p className="mb-4 rounded-2xl bg-tomato-100 p-3 text-sm font-semibold text-tomato-500">{(remove.error as Error).message}</p>}
       <Card>
         <div className="space-y-3">
           {editing === 'new' && <Row onDone={() => setEditing(null)} />}
@@ -55,6 +65,9 @@ export default function Categories() {
                   <p className="text-sm text-charcoal-500">{c._count.products} products · /{c.slug}</p>
                 </div>
                 <Button size="sm" variant="secondary" onClick={() => setEditing(c.id)}>Edit</Button>
+                <Button size="sm" variant="ghost" className="text-tomato-500" disabled={c._count.products > 0} loading={remove.isPending && remove.variables === c.id} onClick={() => window.confirm(`Delete ${c.name}?`) && remove.mutate(c.id)}>
+                  Delete
+                </Button>
               </div>
             ),
           )}

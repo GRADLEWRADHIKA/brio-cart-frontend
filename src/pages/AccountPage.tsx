@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ChevronRight, LogOut, MapPin, Package, Pencil, Plus, Star, Trash2, UserRound } from 'lucide-react';
+import { Bell, ChevronRight, LogOut, MapPin, Package, Pencil, Plus, RotateCcw, Star, Trash2, UserRound } from 'lucide-react';
+import { useReorder } from '@/hooks/useReorder';
 import { addressSchema, formatINR, profileSchema } from '@shared';
 import { accountApi } from '@/api/endpoints';
 import { useAuth } from '@/hooks/useAuth';
@@ -40,7 +41,10 @@ export default function AccountPage() {
           <p className="eyebrow text-leaf-600">My account</p>
           <h1 className="mt-2 font-display text-4xl font-semibold text-forest-900 sm:text-5xl">Namaste, {user.name.split(' ')[0]}</h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <ButtonLink to="/notifications" variant="outline" icon={<Bell className="size-4" />}>
+            Notifications
+          </ButtonLink>
           {user.role === 'ADMIN' && (
             <ButtonLink to="/admin" variant="secondary">
               Store dashboard
@@ -74,6 +78,7 @@ export default function AccountPage() {
 
 function OrdersTab() {
   const { data, isLoading } = useQuery({ queryKey: ['account', 'orders'], queryFn: accountApi.orders });
+  const reorder = useReorder();
   if (isLoading) return <div className="skeleton h-40 rounded-[1.75rem]" />;
   if (!data?.length)
     return (
@@ -108,6 +113,18 @@ function OrdersTab() {
               </span>
             </div>
           </Link>
+          {(o.status === 'DELIVERED' || o.status === 'CANCELLED') && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mt-2"
+              icon={<RotateCcw className="size-4" />}
+              loading={reorder.isPending && reorder.variables?.items === o.items}
+              onClick={() => reorder.mutate(o)}
+            >
+              Reorder
+            </Button>
+          )}
         </li>
       ))}
     </ul>

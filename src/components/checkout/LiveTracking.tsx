@@ -14,8 +14,10 @@ function headline(o: Order) {
     case 'CONFIRMED':
       return { title: 'Order confirmed', sub: o.deliverySlot ? `Scheduled for ${o.deliverySlot}` : 'We’ll start packing soon.' };
     case 'PREPARING':
+      if (o.delivery?.status === 'PICKED_UP') return { title: 'Picked up', sub: `${o.rider?.name ?? 'Your rider'} has your order and will start the trip soon.` };
       return { title: 'Packing your order', sub: 'Fresh produce is being sorted and packed.' };
     case 'OUT_FOR_DELIVERY':
+      if (o.delivery?.status === 'FAILED') return { title: 'Delivery attempt failed', sub: o.delivery.failReason ? `${o.delivery.failReason}. The store will contact you.` : 'The store will contact you.' };
       if (t?.arrived) return { title: 'Your rider has arrived', sub: 'Share the delivery code to receive your order.' };
       if (t?.etaMinutes != null) return { title: `Arriving in ~${Math.max(1, t.etaMinutes)} min`, sub: 'Your order is on the way.' };
       return { title: 'On the way', sub: 'Your order has left the store.' };

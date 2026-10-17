@@ -5,6 +5,7 @@ import { ApiError } from '@/api/client';
 import { isNative } from '@/config/env';
 import { AppShell, PageFallback } from '@/components/layout/AppShell';
 import HomePage from '@/pages/HomePage';
+import { GuestOnly, RequireRole } from '@/auth/guards';
 
 // Route-based code splitting: only the homepage ships in the initial bundle.
 const ShopPage = lazy(() => import('@/pages/ShopPage'));
@@ -21,6 +22,8 @@ const InfoPage = lazy(() => import('@/pages/InfoPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 const AdminApp = lazy(() => import('@/pages/admin/AdminApp'));
 const RiderApp = lazy(() => import('@/pages/rider/RiderApp'));
+const RiderRegisterPage = lazy(() => import('@/pages/rider/RiderRegisterPage'));
+const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,14 +41,16 @@ const customerRoutes: RouteObject[] = [
   { path: 'shop', element: <ShopPage /> },
   { path: 'product/:slug', element: <ProductPage /> },
   { path: 'cart', element: <CartPage /> },
-  { path: 'checkout', element: <CheckoutPage /> },
+  // Customer-only pages: guests may check out; staff and riders are sent to their own home.
+  { path: 'checkout', element: <RequireRole roles={['CUSTOMER']} allowGuest><CheckoutPage /></RequireRole> },
   { path: 'orders/:orderNumber', element: <OrderPage /> },
-  { path: 'pay/:orderNumber', element: <PaymentPage /> },
+  { path: 'pay/:orderNumber', element: <RequireRole roles={['CUSTOMER']} allowGuest><PaymentPage /></RequireRole> },
   { path: 'track', element: <TrackPage /> },
   { path: 'login', element: <LoginPage /> },
   { path: 'register', element: <RegisterPage /> },
-  { path: 'account', element: <AccountPage /> },
-  { path: 'account/:tab', element: <AccountPage /> },
+  { path: 'account', element: <RequireRole roles={['CUSTOMER']}><AccountPage /></RequireRole> },
+  { path: 'account/:tab', element: <RequireRole roles={['CUSTOMER']}><AccountPage /></RequireRole> },
+  { path: 'notifications', element: <RequireRole roles={['CUSTOMER']}><NotificationsPage /></RequireRole> },
   { path: 'help', element: <InfoPage page="help" /> },
   { path: 'privacy', element: <InfoPage page="privacy" /> },
   { path: 'terms', element: <InfoPage page="terms" /> },
@@ -55,12 +60,24 @@ const customerRoutes: RouteObject[] = [
 
 const routes: RouteObject[] = [
   { path: '/', element: <AppShell />, children: customerRoutes },
-  // Delivery-partner portal (role-checked on the server).
+  // Delivery-partner portal (role-checked on the server). Sign-up is public; the rest is riders only.
   {
-    path: '/rider',
+    path: '/rider/register',
     element: (
       <Suspense fallback={<PageFallback />}>
-        <RiderApp />
+        <GuestOnly>
+          <RiderRegisterPage />
+        </GuestOnly>
+      </Suspense>
+    ),
+  },
+  {
+    path: '/rider/*',
+    element: (
+      <Suspense fallback={<PageFallback />}>
+        <RequireRole roles={['RIDER']}>
+          <RiderApp />
+        </RequireRole>
       </Suspense>
     ),
   },

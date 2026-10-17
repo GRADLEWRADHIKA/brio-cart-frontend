@@ -1,6 +1,6 @@
 /**
  * Starts an isolated Brio Cart API for end-to-end tests:
- * fresh SQLite database → migrations → seed → a throwaway admin → server on port 4710.
+ * fresh SQLite database → migrations → seed → a throwaway super admin → server on port 4710.
  * The generated admin credentials are written to e2e/.admin.json (gitignored) for the tests.
  *
  * The API lives in its own project: set BRIO_BACKEND_DIR to a brio-cart-backend checkout
@@ -33,7 +33,7 @@ run('npx prisma migrate deploy');
 run('npx tsx prisma/seed.ts');
 
 const admin = { phone: '9111111111', password: 'e2e-' + randomBytes(12).toString('base64url') };
-run(`npx tsx scripts/create-admin.ts --name "E2E Admin" --phone ${admin.phone}`, { ADMIN_PASSWORD: admin.password });
+run(`npx tsx scripts/create-admin.ts --role SUPERADMIN --name "E2E Admin" --phone ${admin.phone}`, { ADMIN_PASSWORD: admin.password });
 writeFileSync(path.join(here, '.admin.json'), JSON.stringify(admin));
 
 // Run the API with the backend's own tsx (and tsconfig) as a child, and stop it when this process stops.

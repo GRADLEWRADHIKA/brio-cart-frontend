@@ -1,4 +1,5 @@
 import { clsx, type ClassValue } from 'clsx';
+import { DELIVERY_STATUS_LABELS, ORDER_STATUS_LABELS } from '@shared/core';
 import { isNative } from '@/config/env';
 
 export const cn = (...v: ClassValue[]) => clsx(v);
@@ -54,3 +55,19 @@ export function newIdempotencyKey() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 }
+
+const EVENT_LABELS: Record<string, string> = {
+  ...ORDER_STATUS_LABELS,
+  ...DELIVERY_STATUS_LABELS,
+  // Store-side OUT_FOR_DELIVERY / DELIVERED keep the store wording.
+  OUT_FOR_DELIVERY: ORDER_STATUS_LABELS.OUT_FOR_DELIVERY,
+  DELIVERED: ORDER_STATUS_LABELS.DELIVERED,
+  UNASSIGNED: 'Rider unassigned',
+  RIDER_REJECTED: 'Rider rejected',
+  DELIVERY_FAILED: 'Delivery failed',
+  ADDRESS_CHANGED: 'Address changed',
+  OTP_RESET: 'New delivery code',
+};
+
+/** Label for an order timeline event (store statuses and rider steps). */
+export const eventLabel = (status: string) => EVENT_LABELS[status] ?? status;

@@ -1,4 +1,4 @@
-import type { OrderStatus, OrderTotals, PaymentMethod, Role } from '@shared/core';
+import type { DeliveryStatus, NotificationType, OrderStatus, OrderTotals, PaymentMethod, RiderStatus, Role } from '@shared/core';
 
 export interface Variant {
   id: string;
@@ -122,6 +122,8 @@ export interface User {
   phone: string;
   email: string | null;
   role: Role;
+  /** Riders only. */
+  riderStatus: RiderStatus | null;
   createdAt: string;
 }
 
@@ -161,8 +163,19 @@ export interface Order {
   paymentStatus: string;
   couponCode: string | null;
   rider: { id: string; name: string; phone: string; vehicleNumber: string | null } | null;
-  /** Only present for the customer, until the order is closed. */
+  /** Only present for the customer, while the order is out for delivery. */
   deliveryOtp?: string;
+  delivery: {
+    status: DeliveryStatus | null;
+    failReason: string | null;
+    otpExpiresAt: string | null;
+    otpLocked: boolean;
+    deliveredAt: string | null;
+    /** Rider views only (paise). */
+    payout?: number | null;
+  };
+  /** Customer may cancel (before pickup). */
+  canCancel: boolean;
   rating: { stars: number; comment: string | null; at: string | null } | null;
   tracking?: Tracking;
   subtotal: number;
@@ -180,7 +193,8 @@ export interface Order {
     quantity: number;
     lineTotal: number;
   }>;
-  events: Array<{ status: OrderStatus; note: string | null; at: string }>;
+  /** Store statuses plus rider steps (ASSIGNED, PICKED_UP, RIDER_REJECTED, DELIVERY_FAILED, …). */
+  events: Array<{ status: string; note: string | null; at: string }>;
 }
 
 export interface Tracking {
@@ -194,4 +208,41 @@ export interface Tracking {
   progress: number | null;
   etaMinutes: number | null;
   arrived: boolean;
+}
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  orderId: string | null;
+  orderNumber: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationPage {
+  items: AppNotification[];
+  total: number;
+  unread: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface RiderProfile {
+  id: string;
+  name: string;
+  phone: string;
+  vehicleNumber: string | null;
+  riderStatus: RiderStatus | null;
+  isOnline: boolean;
+}
+
+export interface RiderEarnings {
+  payoutPerDelivery: number;
+  today: { date: string; deliveries: number; amount: number };
+  thisWeek: { weekStart: string; deliveries: number; amount: number };
+  daily: Array<{ date: string; deliveries: number; amount: number }>;
+  weekly: Array<{ weekStart: string; deliveries: number; amount: number }>;
+  deliveries: Array<{ orderId: string; orderNumber: string; areaName: string; deliveredAt: string | null; payout: number }>;
 }

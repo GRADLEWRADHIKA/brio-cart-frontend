@@ -10,9 +10,8 @@ import { useContact } from '@/hooks/useStoreInfo';
 import { OrderStatusTracker, StatusPill } from '@/components/checkout/OrderStatusTracker';
 import { LiveTracking } from '@/components/checkout/LiveTracking';
 import { RateOrder } from '@/components/checkout/RateOrder';
-import { catalogApi } from '@/api/endpoints';
-import { useCart } from '@/store/cart';
-import { useUi } from '@/store/ui';
+import { useReorder } from '@/hooks/useReorder';
+import { EditDeliveryAddress } from '@/components/checkout/EditDeliveryAddress';
 import { CreditCard, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button, ButtonLink } from '@/components/ui/Button';
@@ -61,35 +60,7 @@ export default function OrderPage() {
     },
   });
   const navigate = useNavigate();
-  const addLines = useCart((s) => s.addLines);
-  const setCartOpen = useUi((s) => s.setCartOpen);
-  const toast = useUi((s) => s.toast);
-  const reorder = useMutation({
-    mutationFn: async () => {
-      const items = (order?.items ?? []).filter((i) => i.variantId).map((i) => ({ variantId: i.variantId!, quantity: i.quantity }));
-      return catalogApi.validateCart(items);
-    },
-    onSuccess: (v) => {
-      addLines(
-        v.lines.map((l) => ({
-          variantId: l.variantId,
-          productId: l.productId,
-          slug: l.productSlug,
-          name: l.productName,
-          nameHi: null,
-          variantLabel: l.variantLabel,
-          unitPrice: l.unitPrice,
-          mrp: l.mrp,
-          imageUrl: l.imageUrl,
-          quantity: l.quantity,
-          maxQty: l.maxQty,
-          issue: null,
-        })),
-      );
-      if (v.issues.length) toast({ title: `${v.issues.length} item${v.issues.length > 1 ? 's are' : ' is'} unavailable now`, description: 'Everything else was added to your cart.', tone: 'info' });
-      setCartOpen(true);
-    },
-  });
+  const reorder = useReorder();
   const cancel = useMutation({
     mutationFn: () => orderApi.cancel(orderNumber, key ?? undefined),
     onSuccess: (o) => qc.setQueryData(['order', orderNumber, key], o),
@@ -247,6 +218,9 @@ export default function OrderPage() {
               </p>
               <p className="mt-1 text-sm text-charcoal-500">+91 {order.customer.phone}</p>
               {order.customer.instructions && <p className="mt-2 rounded-xl bg-ivory-100 p-2 text-sm">“{order.customer.instructions}”</p>}
+              {!['DELIVERED', 'CANCELLED'].includes(order.status) && (
+                <EditDeliveryAddress order={order} accessKey={key ?? undefined} onSaved={(o) => qc.setQueryData(['order', orderNumber, key], o)} />
+              )}
             </div>
             <div className="rounded-[1.75rem] border border-line bg-white p-5">
               <h2 className="flex items-center gap-2 font-sans text-sm font-extrabold uppercase tracking-wider text-charcoal-500"><Wallet className="size-4" /> Payment</h2>
@@ -277,7 +251,7 @@ export default function OrderPage() {
               <Phone className="size-4" /> {phoneDisplay}
             </a>
           </section>
-          {order.status === 'PENDING' && (
+          {order.canCancel && (
             <Button
               variant="ghost"
               block
@@ -290,7 +264,7 @@ export default function OrderPage() {
           )}
           {cancel.error && <p className="text-center text-sm font-semibold text-tomato-500">{(cancel.error as Error).message}</p>}
           {(order.status === 'DELIVERED' || order.status === 'CANCELLED') && (
-            <Button block icon={<RotateCcw className="size-4" />} loading={reorder.isPending} onClick={() => reorder.mutate()}>
+            <Button block icon={<RotateCcw className="size-4" />} loading={reorder.isPending} onClick={() => reorder.mutate(order)}>
               Order again
             </Button>
           )}

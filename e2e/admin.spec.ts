@@ -16,10 +16,12 @@ test.describe('admin', () => {
     await page.getByLabel('Mobile number').fill(phone);
     await page.getByLabel('Password').fill('customer-password');
     await page.getByRole('button', { name: 'Create account' }).click();
-    await expect(page.getByRole('heading', { name: /Namaste, Regular/ })).toBeVisible();
+    // Customers land on the storefront after signing up.
+    await expect(page).toHaveURL(/\/$/);
 
+    // Opening the dashboard sends a customer back to the storefront.
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { name: 'Store staff only' })).toBeVisible();
+    await expect(page).toHaveURL(/\/$/);
     // The API refuses too — the UI gate is not the security boundary.
     const status = await page.evaluate(async () => (await fetch('/api/admin/summary', { credentials: 'include' })).status);
     expect(status).toBe(403);

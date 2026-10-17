@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { TextField } from '@/components/forms/Field';
 import { Button } from '@/components/ui/Button';
 import { AuthLayout } from './AuthLayout';
-import { safeNext } from './LoginPage';
+import { postLoginPath } from '@/auth/access';
 
 type In = z.input<typeof registerSchema>;
 type Out = z.output<typeof registerSchema>;
@@ -17,7 +17,7 @@ export default function RegisterPage() {
   const { register: signUp, user } = useAuth();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const next = safeNext(params.get('next'));
+  const requested = params.get('next');
   const form = useForm<In, unknown, Out>({ resolver: zodResolver(registerSchema), defaultValues: { name: '', phone: '', email: '', password: '' } });
   const { errors } = form.formState;
 
@@ -25,8 +25,8 @@ export default function RegisterPage() {
     document.title = 'Create account — Brio Cart';
   }, []);
   useEffect(() => {
-    if (user) navigate(next, { replace: true });
-  }, [user, navigate, next]);
+    if (user) navigate(postLoginPath(user.role, requested), { replace: true });
+  }, [user, navigate, requested]);
 
   const fieldErrors = (signUp.error as { details?: { fields?: Record<string, string> } } | null)?.details?.fields;
 

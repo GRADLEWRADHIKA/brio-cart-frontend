@@ -15,7 +15,7 @@ function SettingsForm({ initial }: { initial: AdminSettings }) {
   const form = useForm<AdminSettings>({ defaultValues: initial });
   const save = useMutation({
     mutationFn: (v: AdminSettings) =>
-      adminApi.saveSettings({ ...v, deliveryFee: Number(v.deliveryFee), freeDeliveryThreshold: Number(v.freeDeliveryThreshold), minOrderAmount: Number(v.minOrderAmount), deliverySlots: slots.map((s) => s.trim()).filter(Boolean), supportEmail: v.supportEmail || null, deliveryNote: v.deliveryNote || null }),
+      adminApi.saveSettings({ ...v, deliveryFee: Number(v.deliveryFee), freeDeliveryThreshold: Number(v.freeDeliveryThreshold), minOrderAmount: Number(v.minOrderAmount), riderPayoutPerDelivery: Number(v.riderPayoutPerDelivery), deliverySlots: slots.map((s) => s.trim()).filter(Boolean), supportEmail: v.supportEmail || null, deliveryNote: v.deliveryNote || null }),
     onSuccess: (s) => {
       form.reset(s);
       setSlots(s.deliverySlots);
@@ -44,6 +44,7 @@ function SettingsForm({ initial }: { initial: AdminSettings }) {
           <TextField label="Delivery fee (₹)" type="number" min={0} step="0.01" {...register('deliveryFee')} error={fields?.deliveryFee} />
           <TextField label="Free delivery from (₹)" type="number" min={0} step="0.01" {...register('freeDeliveryThreshold')} hint="0 = never free" />
           <TextField label="Minimum order (₹)" type="number" min={0} step="0.01" {...register('minOrderAmount')} hint="0 = no minimum" />
+          <TextField label="Rider payout per delivery (₹)" type="number" min={0} step="0.01" {...register('riderPayoutPerDelivery')} error={fields?.riderPayoutPerDelivery} hint="Shown on the rider earnings page. Applies to deliveries completed after saving." />
           <TextField label="Delivery note" optional {...register('deliveryNote')} className="sm:col-span-3" />
         </div>
         <p className="mb-2 mt-5 text-sm font-extrabold text-charcoal-700">Delivery slots</p>

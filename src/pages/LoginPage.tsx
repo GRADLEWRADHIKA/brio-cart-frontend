@@ -6,6 +6,7 @@ import { loginSchema, type LoginInput } from '@shared';
 import { useAuth } from '@/hooks/useAuth';
 import { TextField } from '@/components/forms/Field';
 import { Button } from '@/components/ui/Button';
+import { postLoginPath } from '@/auth/access';
 import { AuthLayout } from './AuthLayout';
 
 /** Only same-app relative paths are allowed as post-login redirects. */
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const next = safeNext(params.get('next'));
+  const requested = params.get('next');
   const form = useForm<LoginInput>({ resolver: zodResolver(loginSchema), defaultValues: { identifier: '', password: '' } });
   const { errors } = form.formState;
 
@@ -25,10 +27,9 @@ export default function LoginPage() {
     document.title = 'Sign in — Brio Cart';
   }, []);
   useEffect(() => {
-    if (!user) return;
-    const home = user.role === 'ADMIN' ? '/admin' : user.role === 'RIDER' ? '/rider' : '/account';
-    navigate(next === '/account' ? home : next, { replace: true });
-  }, [user, navigate, next]);
+    // Each role lands on its own home; a requested page is honoured only if the role may open it.
+    if (user) navigate(postLoginPath(user.role, requested), { replace: true });
+  }, [user, navigate, requested]);
 
   return (
     <AuthLayout title="Welcome back" subtitle="Sign in to see your orders, saved addresses and faster checkout.">
@@ -51,6 +52,12 @@ export default function LoginPage() {
         </Link>
       </p>
       <p className="mt-2 text-center text-xs text-charcoal-400">You can also check out as a guest — no account needed.</p>
+      <p className="mt-4 text-center text-sm text-charcoal-500">
+        Delivery partner?{' '}
+        <Link to="/rider/register" className="font-bold text-forest-700 underline underline-offset-2">
+          Join as a rider
+        </Link>
+      </p>
     </AuthLayout>
   );
 }

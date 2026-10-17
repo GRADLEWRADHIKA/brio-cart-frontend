@@ -1,11 +1,13 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { Bike, ExternalLink, LayoutDashboard, LogOut, Map as MapIcon, MapPin, Menu, Package, Settings, ShieldAlert, ShoppingCart, Tag, Tags, X } from 'lucide-react';
+import { Bell, Bike, ExternalLink, LayoutDashboard, LogOut, Map as MapIcon, MapPin, Menu, Package, ScrollText, Settings, ShoppingCart, Tag, Tags, UserCheck, Users as UsersIcon, X } from 'lucide-react';
+import { hasPermission, ROLE_LABELS, type Permission } from '@shared/core';
 import { useAuth } from '@/hooks/useAuth';
 import { Logo } from '@/components/ui/Brand';
-import { ButtonLink } from '@/components/ui/Button';
-import { EmptyState, Spinner } from '@/components/ui/misc';
+import { Spinner } from '@/components/ui/misc';
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary';
+import { RequirePermission, RequireRole } from '@/auth/guards';
+import { NotificationBell } from '@/components/notifications/Notifications';
 import { cn } from '@/utils';
 
 const Dashboard = lazy(() => import('./Dashboard'));
@@ -19,39 +21,29 @@ const StoreSettingsPage = lazy(() => import('./StoreSettings'));
 const LiveOps = lazy(() => import('./LiveOps'));
 const Riders = lazy(() => import('./Riders'));
 const Coupons = lazy(() => import('./Coupons'));
+const Users = lazy(() => import('./Users'));
+const RiderApprovals = lazy(() => import('./RiderApprovals'));
+const AuditLog = lazy(() => import('./AuditLog'));
+const AdminNotifications = lazy(() => import('./Notifications'));
 
-const NAV = [
-  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/admin/live', label: 'Live operations', icon: MapIcon },
-  { to: '/admin/orders', label: 'Orders', icon: ShoppingCart },
-  { to: '/admin/riders', label: 'Delivery partners', icon: Bike },
-  { to: '/admin/coupons', label: 'Coupons', icon: Tag },
-  { to: '/admin/products', label: 'Products', icon: Package },
-  { to: '/admin/categories', label: 'Categories', icon: Tags },
-  { to: '/admin/areas', label: 'Delivery areas', icon: MapPin },
-  { to: '/admin/settings', label: 'Settings & campaigns', icon: Settings },
+/** Navigation is filtered by the shared permission map; the API enforces the same map. */
+const NAV: Array<{ to: string; label: string; icon: typeof Bell; end?: boolean; permission: Permission }> = [
+  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true, permission: 'order:view_all' },
+  { to: '/admin/live', label: 'Live operations', icon: MapIcon, permission: 'order:view_all' },
+  { to: '/admin/orders', label: 'Orders', icon: ShoppingCart, permission: 'order:view_all' },
+  { to: '/admin/riders', label: 'Delivery partners', icon: Bike, permission: 'rider:view' },
+  { to: '/admin/rider-approvals', label: 'Rider approvals', icon: UserCheck, permission: 'rider:approve' },
+  { to: '/admin/coupons', label: 'Coupons', icon: Tag, permission: 'coupon:manage' },
+  { to: '/admin/products', label: 'Products', icon: Package, permission: 'catalog:view' },
+  { to: '/admin/categories', label: 'Categories', icon: Tags, permission: 'category:manage' },
+  { to: '/admin/areas', label: 'Delivery areas', icon: MapPin, permission: 'settings:manage' },
+  { to: '/admin/settings', label: 'Settings & campaigns', icon: Settings, permission: 'settings:manage' },
+  { to: '/admin/users', label: 'Users', icon: UsersIcon, permission: 'user:manage' },
+  { to: '/admin/audit', label: 'Audit log', icon: ScrollText, permission: 'audit:view' },
+  { to: '/admin/notifications', label: 'Notifications', icon: Bell, permission: 'notification:read' },
 ];
 
-function Gate({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="grid min-h-dvh place-items-center text-leaf-600">
-        <Spinner className="size-8" />
-      </div>
-    );
-  }
-  if (!user) return <Navigate to="/login?next=/admin" replace />;
-  // UI gate only — every admin API route independently enforces the ADMIN role.
-  if (user.role !== 'ADMIN') {
-    return (
-      <EmptyState className="min-h-dvh justify-center" icon={<ShieldAlert className="size-10" />} title="Store staff only" action={<ButtonLink to="/">Back to the store</ButtonLink>}>
-        Your account doesn’t have access to the store dashboard.
-      </EmptyState>
-    );
-  }
-  return <>{children}</>;
-}
+const guard = (permission: Permission, el: ReactNode) => <RequirePermission permission={permission}>{el}</RequirePermission>;
 
 function Shell() {
   const { user, logout } = useAuth();
@@ -64,7 +56,7 @@ function Shell() {
 
   const nav = (
     <nav className="flex flex-col gap-1" aria-label="Dashboard">
-      {NAV.map(({ to, label, icon: Icon, end }) => (
+      {NAV.filter((n) => hasPermission(user?.role, n.permission)).map(({ to, label, icon: Icon, end }) => (
         <NavLink
           key={to}
           to={to}
@@ -84,12 +76,15 @@ function Shell() {
           <Link to="/admin">
             <Logo tone="ivory" />
           </Link>
-          <button type="button" className="grid size-9 place-items-center rounded-full bg-white/10 lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu">
-            <X className="size-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <NotificationBell tone="dark" className="hidden lg:block" />
+            <button type="button" className="grid size-9 place-items-center rounded-full bg-white/10 lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu">
+              <X className="size-4" />
+            </button>
+          </div>
         </div>
-        <p className="mt-2 px-3 text-[0.65rem] font-extrabold uppercase tracking-[0.2em] text-lime-300/80">Store dashboard</p>
-        <div className="mt-4 flex-1">{nav}</div>
+        <p className="mt-2 px-3 text-[0.65rem] font-extrabold uppercase tracking-[0.2em] text-lime-300/80">Store dashboard · {user ? ROLE_LABELS[user.role] : ''}</p>
+        <div className="mt-4 flex-1 overflow-y-auto">{nav}</div>
         <div className="space-y-1 border-t border-white/10 pt-4">
           <Link to="/" className="flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-bold text-ivory-50/75 hover:bg-white/10">
             <ExternalLink className="size-4" /> View storefront
@@ -106,7 +101,8 @@ function Shell() {
           <button type="button" onClick={() => setOpen(true)} className="grid size-10 place-items-center rounded-full hover:bg-ivory-200" aria-label="Open menu">
             <Menu className="size-5" />
           </button>
-          <span className="font-display text-lg font-semibold">Brio Cart admin</span>
+          <span className="flex-1 font-display text-lg font-semibold">Brio Cart admin</span>
+          <NotificationBell />
         </header>
         <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
           <ErrorBoundary resetKey={loc.pathname}>
@@ -118,18 +114,22 @@ function Shell() {
               }
             >
               <Routes>
-                <Route index element={<Dashboard />} />
-                <Route path="orders" element={<Orders />} />
-                <Route path="orders/:id" element={<OrderDetail />} />
-                <Route path="products" element={<Products />} />
-                <Route path="products/new" element={<ProductEditor />} />
-                <Route path="products/:id" element={<ProductEditor />} />
-                <Route path="categories" element={<Categories />} />
-                <Route path="areas" element={<Areas />} />
-                <Route path="settings" element={<StoreSettingsPage />} />
-                <Route path="live" element={<LiveOps />} />
-                <Route path="riders" element={<Riders />} />
-                <Route path="coupons" element={<Coupons />} />
+                <Route index element={guard('order:view_all', <Dashboard />)} />
+                <Route path="orders" element={guard('order:view_all', <Orders />)} />
+                <Route path="orders/:id" element={guard('order:view_all', <OrderDetail />)} />
+                <Route path="products" element={guard('catalog:view', <Products />)} />
+                <Route path="products/new" element={guard('product:create', <ProductEditor />)} />
+                <Route path="products/:id" element={guard('product:update', <ProductEditor />)} />
+                <Route path="categories" element={guard('category:manage', <Categories />)} />
+                <Route path="areas" element={guard('settings:manage', <Areas />)} />
+                <Route path="settings" element={guard('settings:manage', <StoreSettingsPage />)} />
+                <Route path="live" element={guard('order:view_all', <LiveOps />)} />
+                <Route path="riders" element={guard('rider:view', <Riders />)} />
+                <Route path="rider-approvals" element={guard('rider:approve', <RiderApprovals />)} />
+                <Route path="coupons" element={guard('coupon:manage', <Coupons />)} />
+                <Route path="users" element={guard('user:manage', <Users />)} />
+                <Route path="audit" element={guard('audit:view', <AuditLog />)} />
+                <Route path="notifications" element={guard('notification:read', <AdminNotifications />)} />
                 <Route path="*" element={<Navigate to="/admin" replace />} />
               </Routes>
             </Suspense>
@@ -140,10 +140,11 @@ function Shell() {
   );
 }
 
+/** Store staff only (admin and super admin); others are sent to their own home. */
 export default function AdminApp() {
   return (
-    <Gate>
+    <RequireRole roles={['ADMIN', 'SUPERADMIN']}>
       <Shell />
-    </Gate>
+    </RequireRole>
   );
 }

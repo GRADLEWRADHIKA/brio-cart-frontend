@@ -95,3 +95,23 @@ export const profileSchema = z.object({
     .optional()
     .or(z.literal('').transform(() => undefined)),
 });
+
+/** Self-registration for delivery partners. Accounts start PENDING until a super admin approves them. */
+export const riderRegisterSchema = registerSchema.extend({
+  vehicleNumber: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .min(4, 'Enter your vehicle number')
+    .max(20, 'Vehicle number must be at most 20 characters'),
+});
+export type RiderRegisterInput = z.input<typeof riderRegisterSchema>;
+
+/** Delivery address fields a customer may correct before pickup. */
+export const orderAddressSchema = z.object({
+  house: addressFields.house,
+  street: addressFields.street,
+  landmark: addressFields.landmark,
+  instructions: optionalText(300),
+});
+export type OrderAddressInput = z.input<typeof orderAddressSchema>;
