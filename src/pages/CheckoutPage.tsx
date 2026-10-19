@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { AlertCircle, Banknote, CreditCard, Lock, MapPin, QrCode, ShoppingBasket, Sunrise, Tag, X } from 'lucide-react';
-import { addressFields, computeTotals, formatINR, type PaymentMethod } from '@shared';
+import { addressFields, computeTotals, formatINR, hasPermission, type PaymentMethod } from '@shared';
 import { accountApi, catalogApi, orderApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
 import { useCart } from '@/store/cart';
@@ -14,6 +14,7 @@ import { useGuestOrders } from '@/store/guest-orders';
 import { useAuth } from '@/hooks/useAuth';
 import { useCartTotals } from '@/hooks/useCartTotals';
 import { useCartValidation } from '@/hooks/useCartValidation';
+import { SlotPicker } from '@/components/checkout/SlotPicker';
 import { useStoreInfo } from '@/hooks/useStoreInfo';
 import { Checkbox, SelectField, TextAreaField, TextField } from '@/components/forms/Field';
 import { TotalsTable } from '@/components/cart/CartBits';
@@ -103,6 +104,20 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (slots.length && !form.getValues('deliverySlot')) setValue('deliverySlot', slots[0]);
   }, [slots, setValue, form]);
+  // Admin-defined slots with capacity replace the plain slot labels when the store has set them up.
+  const slotDays = useQuery({ queryKey: ['delivery-slots'], queryFn: () => catalogApi.deliverySlots(3), refetchInterval: 60_000 });
+  const bookable = !!slotDays.data?.some((d) => d.slots.length > 0);
+  const [booking, setBooking] = useState<{ slotId: string; date: string } | null>(null);
+  const wallet = useQuery({ queryKey: ['account', 'wallet'], queryFn: accountApi.wallet, enabled: hasPermission(user?.role, 'wallet:view_own') });
+  const credit = wallet.data?.balance ?? 0;
+  const [useCredit, setUseCredit] = useState(false);
+  const bookedLabel = booking && slotDays.data?.find((d) => d.date === booking.date)?.slots.find((x) => x.id === booking.slotId)?.label;
+  const slotText = bookable ? (bookedLabel && booking ? `${bookedLabel} on ${booking.date}` : '') : deliverySlot;
+  // Cart and checkout totals follow the chosen area's fee rules.
+  const setPrefArea = prefs.setArea;
+  useEffect(() => {
+    if (watched.areaId) setPrefArea(watched.areaId);
+  }, [watched.areaId, setPrefArea]);
   useEffect(() => {
     if (user && !form.getValues('name')) setValue('name', user.name);
     if (user && !form.getValues('phone')) setValue('phone', user.phone);
@@ -170,13 +185,20 @@ export default function CheckoutPage() {
     }
     const payload = {
       customer: { name: v.name, phone: v.phone, areaId: v.areaId, house: v.house, street: v.street, landmark: v.landmark, instructions: v.instructions || undefined },
-      deliverySlot: v.deliverySlot || undefined,
+      deliverySlot: bookable ? undefined : v.deliverySlot || undefined,
+      deliverySlotId: bookable ? booking?.slotId : undefined,
+      deliveryDate: bookable ? booking?.date : undefined,
       paymentMethod: v.paymentMethod,
       items,
       couponCode: couponOk?.code,
       confirmed: true as const,
       saveAddress: user ? !!v.saveAddress : undefined,
+      useWalletCredit: credit > 0 && useCredit ? true : undefined,
     };
+    if (bookable && !booking) {
+      setServerError('Please choose a delivery slot.');
+      return;
+    }
     const idempotencyKey = idempotencyKeyFor(JSON.stringify(payload));
     setSubmitting(true);
     try {
@@ -278,10 +300,22 @@ export default function CheckoutPage() {
               ) : (
                 <Checkbox label="Remember my details on this device" description="Stored only on this device to speed up your next order." {...register('rememberDetails')} />
               )}
+              {credit > 0 && (
+                <Checkbox label={`Use my store credit (${formatINR(credit)} available)`} description="Taken off the amount to pay, up to the order total." checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} />
+              )}
             </div>
           </section>
 
-          {slots.length > 0 && (
+          {bookable && slotDays.data && (
+            <section className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby="slot-h">
+              <h2 id="slot-h" className="flex items-center gap-2 font-display text-2xl font-semibold text-forest-900">
+                <Sunrise className="size-5 text-marigold-500" /> Delivery slot
+              </h2>
+              <p className="mb-4 mt-1 text-sm text-charcoal-500">{store?.settings.deliveryNote}</p>
+              <SlotPicker days={slotDays.data} value={booking} onChange={setBooking} />
+            </section>
+          )}
+          {!bookable && slots.length > 0 && (
             <section className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby="slot-h">
               <h2 id="slot-h" className="flex items-center gap-2 font-display text-2xl font-semibold text-forest-900">
                 <Sunrise className="size-5 text-marigold-500" /> Delivery slot
@@ -401,7 +435,7 @@ export default function CheckoutPage() {
             <div className="mt-5 rounded-2xl bg-ivory-100 p-4">
               <Checkbox
                 label={`I confirm my order of ${formatINR(shownTotals.total)}`}
-                description={`To be delivered${areaName ? ` in ${areaName}` : ''}${deliverySlot ? `, ${deliverySlot}` : ''}. Payment: ${PAYMENT_CARDS.find((p) => p.id === paymentMethod)?.title ?? ''}.`}
+                description={`To be delivered${areaName ? ` in ${areaName}` : ''}${slotText ? `, ${slotText}` : ''}. Payment: ${PAYMENT_CARDS.find((p) => p.id === paymentMethod)?.title ?? ''}.`}
                 {...register('confirmed')}
                 aria-invalid={!!errors.confirmed || undefined}
               />

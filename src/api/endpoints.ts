@@ -1,6 +1,7 @@
 import type { CheckoutInput, OrderAddressInput, RiderRegisterInput } from '@shared';
-import { api } from './client';
-import type { Address, AppNotification, CartValidation, Category, NotificationPage, Order, Product, ProductPage, RiderEarnings, RiderProfile, StoreInfo, User } from '@/types';
+import { api, request } from './client';
+import { API_BASE } from '@/config/env';
+import type { Address, AppNotification, CartValidation, Category, NotificationPage, Order, Product, ProductPage, ReturnRequestRow, RiderCash, RiderEarnings, SlotDay, TicketView, WalletView, RiderProfile, StoreInfo, User } from '@/types';
 
 export interface ProductFilters {
   category?: string;
@@ -18,12 +19,15 @@ export const catalogApi = {
   products: (f: ProductFilters, signal?: AbortSignal) =>
     api.get<ProductPage>('/products', { ...f, inStock: f.inStock ? 'true' : undefined }, signal),
   product: (slug: string) => api.get<{ product: Product; related: Product[] }>(`/products/${encodeURIComponent(slug)}`),
+  deliverySlots: (days = 3) => api.get<{ days: SlotDay[] }>('/delivery-slots', { days }).then((r) => r.days),
   validateCart: (items: Array<{ variantId: string; quantity: number }>, couponCode?: string) =>
     api.post<CartValidation>('/cart/validate', { items, couponCode: couponCode || undefined }),
 };
 
 export const orderApi = {
-  create: (input: CheckoutInput) => api.post<{ order: Order; replayed: boolean }>('/orders', input),
+  /** One Idempotency-Key per checkout attempt: a retried submit returns the original order. */
+  create: (input: CheckoutInput) =>
+    request<{ order: Order; replayed: boolean }>('/orders', { method: 'POST', body: input, headers: { 'Idempotency-Key': input.idempotencyKey } }),
   get: (orderNumber: string, key?: string) =>
     api.get<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}`, { key }).then((r) => r.order),
   demoPay: (orderNumber: string, method: 'UPI' | 'CARD' | 'NETBANKING' | 'WALLET', key?: string) =>
@@ -46,6 +50,17 @@ export const authApi = {
 };
 
 export const accountApi = {
+  sessions: () => api.get<{ items: Array<{ id: string; userAgent: string | null; ip: string | null; createdAt: string; lastSeenAt: string; current: boolean }> }>('/account/sessions').then((r) => r.items),
+  logoutOthers: () => api.post<{ ok: true; token: string }>('/account/sessions/logout-others'),
+  exportData: () => api.get<Record<string, unknown>>('/account/export'),
+  deleteAccount: (password: string) => request<{ ok: true }>('/account', { method: 'DELETE', body: { password } }),
+  tickets: () => api.get<{ items: TicketView[] }>('/account/tickets').then((r) => r.items),
+  ticket: (id: string) => api.get<{ ticket: TicketView }>(`/account/tickets/${id}`).then((r) => r.ticket),
+  openTicket: (body: { subject: string; body: string; orderNumber?: string }) => api.post<{ ticket: TicketView }>('/account/tickets', body).then((r) => r.ticket),
+  replyTicket: (id: string, body: string) => api.post<{ ticket: TicketView }>(`/account/tickets/${id}/messages`, { body }).then((r) => r.ticket),
+  wallet: () => api.get<WalletView>('/account/wallet'),
+  returns: () => api.get<{ items: ReturnRequestRow[] }>('/account/returns').then((r) => r.items),
+  requestReturn: (orderNumber: string, reason: string) => api.post<{ request: ReturnRequestRow }>('/account/returns', { orderNumber, reason }).then((r) => r.request),
   updateProfile: (data: { name: string; email?: string }) => api.patch<{ user: User }>('/account/profile', data).then((r) => r.user),
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post<{ ok: true; token: string }>('/account/password', { currentPassword, newPassword }),
@@ -66,7 +81,11 @@ export const riderApi = {
   pickup: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/pickup`).then((r) => r.order),
   start: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/start`).then((r) => r.order),
   fail: (id: string, reason: string) => api.post<{ order: Order }>(`/rider/orders/${id}/fail`, { reason }).then((r) => r.order),
-  deliver: (id: string, otp: string, cashCollected: boolean) => api.post<{ order: Order }>(`/rider/orders/${id}/deliver`, { otp, cashCollected }).then((r) => r.order),
+  /** `cashAmount` in rupees for cash on delivery; `cashCollected` for UPI on delivery. */
+  deliver: (id: string, otp: string, cash: { cashCollected?: boolean; cashAmount?: number; cashDifferenceReason?: string }) =>
+    api.post<{ order: Order }>(`/rider/orders/${id}/deliver`, { otp, ...cash }).then((r) => r.order),
+  cash: () => api.get<RiderCash>('/rider/cash'),
+  handover: (amount: number, note?: string) => api.post<{ settlement: { id: string } }>('/rider/cash/handover', { amount, note }),
   location: (lat: number, lng: number, accuracy?: number) => api.post<{ ok: true; ordersUpdated: number }>('/rider/location', { lat, lng, accuracy }),
   earnings: () => api.get<RiderEarnings>('/rider/earnings'),
 };
@@ -77,3 +96,7 @@ export const notificationsApi = {
   markRead: (id: string) => api.post<{ notification: AppNotification }>(`/notifications/${id}/read`).then((r) => r.notification),
   markAllRead: () => api.post<{ ok: true; updated: number }>('/notifications/read-all'),
 };
+
+/** Direct link to the invoice PDF (the session cookie, or the guest access key, authorises it). */
+export const invoiceUrl = (orderNumber: string, key?: string | null) =>
+  `${API_BASE}/orders/${encodeURIComponent(orderNumber)}/invoice.pdf${key ? `?key=${encodeURIComponent(key)}` : ''}`;

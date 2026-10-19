@@ -121,8 +121,44 @@ export const NOTIFICATION_TYPES = [
   'ADDRESS_CHANGED',
   'NEW_ORDER',
   'RIDER_REJECTED',
+  'RIDER_TIMEOUT',
+  'CASH_HANDOVER',
+  'CASH_RECEIVED',
+  'RETURN_REQUESTED',
+  'RETURN_APPROVED',
+  'RETURN_REJECTED',
+  'TICKET_OPENED',
+  'TICKET_REPLY',
+  'TICKET_STATUS',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+/** Why a tracked variant's stock changed (StockMovement.reason). The last five are staff adjustments. */
+export const STOCK_REASONS = [
+  'ORDER_PLACED',
+  'ORDER_CANCELLED',
+  'ORDER_TIMEOUT',
+  'DELIVERY_RETURNED',
+  'RESTOCK',
+  'DAMAGE',
+  'CORRECTION',
+  'RETURN',
+  'OTHER',
+] as const;
+export type StockReason = (typeof STOCK_REASONS)[number];
+export const STOCK_ADJUST_REASONS = ['RESTOCK', 'DAMAGE', 'CORRECTION', 'RETURN', 'OTHER'] as const satisfies readonly StockReason[];
+
+export const STOCK_REASON_LABELS: Record<StockReason, string> = {
+  ORDER_PLACED: 'Order placed',
+  ORDER_CANCELLED: 'Order cancelled',
+  ORDER_TIMEOUT: 'Order timed out',
+  DELIVERY_RETURNED: 'Returned after failed delivery',
+  RESTOCK: 'Restock',
+  DAMAGE: 'Damaged / expired',
+  CORRECTION: 'Stock count correction',
+  RETURN: 'Customer return',
+  OTHER: 'Other',
+};
 
 /** Curated product collections used for homepage rails. Assigned by the store admin. */
 export const COLLECTIONS = [
@@ -132,3 +168,48 @@ export const COLLECTIONS = [
   { key: 'popular', label: 'Popular Products' },
 ] as const;
 export type CollectionKey = (typeof COLLECTIONS)[number]['key'];
+
+export const SETTLEMENT_STATUSES = ['PENDING', 'RECEIVED'] as const;
+export type SettlementStatus = (typeof SETTLEMENT_STATUSES)[number];
+
+/** Delivery slot times are minutes after midnight in India time (UTC+5:30, no DST). */
+export const IST_OFFSET_MINUTES = 330;
+
+export function formatMinute(m: number): string {
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  const h12 = ((h + 11) % 12) + 1;
+  return `${h12}${mm ? `:${String(mm).padStart(2, '0')}` : ''}${h < 12 ? 'am' : 'pm'}`;
+}
+
+export interface SlotAvailability {
+  id: string;
+  label: string;
+  startMinute: number;
+  endMinute: number;
+  remaining: number;
+  available: boolean;
+  /** Why the slot can't be booked: FULL | PAST | CUTOFF | CLOSED_TODAY */
+  reason: string | null;
+}
+
+export const RETURN_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'] as const;
+export type ReturnStatus = (typeof RETURN_STATUSES)[number];
+export const REFUND_METHODS = ['STORE_CREDIT', 'CASH'] as const;
+export type RefundMethod = (typeof REFUND_METHODS)[number];
+export const REFUND_METHOD_LABELS: Record<RefundMethod, string> = { STORE_CREDIT: 'Store credit', CASH: 'Refunded in cash' };
+
+/** GST included in a GST-inclusive amount, split equally into CGST and SGST (intra-state). */
+export function gstBreakdown(inclusive: number, ratePercent: number) {
+  if (ratePercent <= 0) return { taxable: inclusive, cgst: 0, sgst: 0, tax: 0 };
+  const taxable = Math.round((inclusive * 100) / (100 + ratePercent));
+  const tax = inclusive - taxable;
+  const cgst = Math.floor(tax / 2);
+  return { taxable, cgst, sgst: tax - cgst, tax };
+}
+
+export const TICKET_STATUSES = ['OPEN', 'IN_PROGRESS', 'CLOSED'] as const;
+export type TicketStatus = (typeof TICKET_STATUSES)[number];
+export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = { OPEN: 'Open', IN_PROGRESS: 'In progress', CLOSED: 'Closed' };
+export const EXPORT_KINDS = ['orders', 'products', 'stock-movements', 'rider-earnings', 'settlements'] as const;
+export type ExportKind = (typeof EXPORT_KINDS)[number];

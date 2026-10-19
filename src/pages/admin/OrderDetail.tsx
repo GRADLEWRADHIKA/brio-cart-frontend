@@ -33,6 +33,7 @@ export default function OrderDetail() {
   const live = useQuery({ queryKey: ['admin', 'live'], queryFn: adminApi.live, enabled: hasPermission(user?.role, 'order:view_all') });
   const assign = useMutation({ mutationFn: (riderId: string | null) => adminApi.assignRider(id, riderId), onSuccess: onDone });
   const resetOtp = useMutation({ mutationFn: () => adminApi.resetOtp(id), onSuccess: onDone });
+  const returnToStock = useMutation({ mutationFn: () => adminApi.returnToStock(id), onSuccess: onDone });
   const demoTrip = useMutation({ mutationFn: () => adminApi.demoTrip(id), onSuccess: onDone });
 
   if (isLoading) return <div className="skeleton h-80 rounded-3xl" />;
@@ -124,6 +125,14 @@ export default function OrderDetail() {
               <p className="mb-3 flex gap-2 rounded-xl bg-tomato-100 p-2 text-sm font-semibold text-tomato-500">
                 <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {o.delivery.failReason ?? 'Delivery failed'}. Reassign a rider or cancel the order.
               </p>
+            )}
+            {o.delivery.status === 'FAILED' && o.status !== 'CANCELLED' && hasPermission(user?.role, 'stock:adjust') && (
+              <div className="mb-3">
+                <Button size="sm" variant="outline" className="w-full" loading={returnToStock.isPending} onClick={() => returnToStock.mutate()}>
+                  Rider returned it: cancel and restock
+                </Button>
+                {returnToStock.error && <p className="mt-1 text-xs font-semibold text-tomato-500">{(returnToStock.error as Error).message}</p>}
+              </div>
             )}
             {o.status === 'OUT_FOR_DELIVERY' && o.delivery.status !== 'FAILED' && (
               <div className="mb-3 rounded-xl bg-ivory-100 p-2 text-xs text-charcoal-700">

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ban, Bell, Bike, CheckCircle2, ChevronDown, Clock, History, KeyRound, LogOut, MapPin, Navigation, Package, PackageCheck, Phone, Power, Radio, RefreshCw, TriangleAlert, Wallet, X } from 'lucide-react';
+import { Ban, Banknote, Bell, Bike, CheckCircle2, ChevronDown, Clock, History, KeyRound, LogOut, MapPin, Navigation, Package, PackageCheck, Phone, Power, Radio, RefreshCw, TriangleAlert, Wallet, X } from 'lucide-react';
 import { DELIVERY_OTP_LENGTH, DELIVERY_STATUS_LABELS, formatINR, ORDER_STATUS_LABELS } from '@shared/core';
 import { riderApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/misc';
 import { NotificationBell, NotificationList } from '@/components/notifications/Notifications';
 import { cn, formatDate, openExternal } from '@/utils';
+import { CashTab } from './CashTab';
 
 /** Shares the rider's GPS (browser geolocation) while enabled; the server applies it to orders they are delivering. */
 function useLiveLocation(enabled: boolean) {
@@ -67,9 +68,16 @@ function OtpSheet({ order, onClose }: { order: Order; onClose: () => void }) {
   const qc = useQueryClient();
   const [otp, setOtp] = useState('');
   const collect = order.paymentStatus === 'UNPAID' && order.paymentMethod !== 'ONLINE';
+  const cod = collect && order.paymentMethod === 'COD';
   const [collected, setCollected] = useState(false);
+  const [cash, setCash] = useState(String(order.total / 100));
+  const [diffReason, setDiffReason] = useState('');
+  const cashPaise = Math.round(Number(cash) * 100);
+  const cashValid = cash.trim() !== '' && Number.isFinite(cashPaise) && cashPaise >= 0;
+  const differs = cod && cashValid && cashPaise !== order.total;
   const deliver = useMutation({
-    mutationFn: () => riderApi.deliver(order.id, otp, collected),
+    mutationFn: () =>
+      riderApi.deliver(order.id, otp, cod ? { cashAmount: cashPaise / 100, cashDifferenceReason: differs ? diffReason.trim() : undefined } : { cashCollected: collected }),
     onSuccess: () => {
       void refreshRider(qc);
       onClose();
@@ -101,14 +109,26 @@ function OtpSheet({ order, onClose }: { order: Order; onClose: () => void }) {
           </button>
         ))}
       </div>
-      {collect && (
+      {cod && (
+        <div className="mt-5 rounded-2xl bg-turmeric-100 p-3 text-sm">
+          <label className="flex items-center justify-between gap-3 font-bold">
+            Cash collected (₹)
+            <input inputMode="decimal" aria-label="Cash collected" value={cash} onChange={(e) => setCash(e.target.value.replace(/[^\d.]/g, ''))} className="h-10 w-28 rounded-xl border border-line bg-white px-3 text-right font-mono" />
+          </label>
+          <p className="mt-1 text-xs text-charcoal-700">Order total {formatINR(order.total)}</p>
+          {differs && (
+            <input aria-label="Reason for the difference" value={diffReason} maxLength={200} onChange={(e) => setDiffReason(e.target.value)} placeholder="Why is it different? e.g. customer had no change" className="mt-2 h-10 w-full rounded-xl border border-line bg-white px-3" />
+          )}
+        </div>
+      )}
+      {collect && !cod && (
         <label className="mt-5 flex items-center gap-3 rounded-2xl bg-turmeric-100 p-3 text-sm font-bold">
           <input type="checkbox" checked={collected} onChange={(e) => setCollected(e.target.checked)} className="size-5 accent-forest-700" />
           Collected {formatINR(order.total)} ({order.paymentMethod === 'COD' ? 'cash' : 'UPI'})
         </label>
       )}
       {deliver.error && <p className="mt-3 text-center text-sm font-semibold text-tomato-500">{(deliver.error as Error).message}</p>}
-      <Button size="lg" block className="mt-5" disabled={otp.length !== DELIVERY_OTP_LENGTH || (collect && !collected)} loading={deliver.isPending} onClick={() => deliver.mutate()}>
+      <Button size="lg" block className="mt-5" disabled={otp.length !== DELIVERY_OTP_LENGTH || (cod ? !cashValid || (differs && diffReason.trim().length < 3) : collect && !collected)} loading={deliver.isPending} onClick={() => deliver.mutate()}>
         Confirm delivery
       </Button>
     </Sheet>
@@ -509,6 +529,7 @@ const TABS = [
   { to: '/rider', label: 'Deliveries', icon: Bike, end: true },
   { to: '/rider/history', label: 'History', icon: History },
   { to: '/rider/earnings', label: 'Earnings', icon: Wallet },
+  { to: '/rider/cash', label: 'Cash', icon: Banknote },
   { to: '/rider/notifications', label: 'Alerts', icon: Bell },
 ];
 
@@ -560,6 +581,7 @@ export default function RiderApp() {
             <Route index element={<Deliveries />} />
             <Route path="history" element={<HistoryTab />} />
             <Route path="earnings" element={<EarningsTab />} />
+            <Route path="cash" element={<CashTab />} />
             <Route path="notifications" element={<NotificationsTab />} />
             <Route path="*" element={<Navigate to="/rider" replace />} />
           </Routes>

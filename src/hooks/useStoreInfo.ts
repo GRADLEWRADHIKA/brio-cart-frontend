@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { usePrefs } from '@/store/prefs';
 import { catalogApi } from '@/api/endpoints';
 import type { DeliveryRules } from '@shared/core';
 import { BRAND } from '@/config/env';
@@ -7,16 +9,22 @@ export function useStoreInfo() {
   return useQuery({ queryKey: ['store'], queryFn: catalogApi.store, staleTime: 60_000 });
 }
 
-/** Delivery rules from the server; falls back to published defaults while loading. */
+/**
+ * Delivery rules from the server for the customer's chosen area (an area's own fee rules override the
+ * store-wide ones field by field); falls back to published defaults while loading.
+ */
 export function useDeliveryRules(): DeliveryRules {
   const { data } = useStoreInfo();
-  return data
-    ? {
-        deliveryFee: data.settings.deliveryFee,
-        freeDeliveryThreshold: data.settings.freeDeliveryThreshold,
-        minOrderAmount: data.settings.minOrderAmount,
-      }
-    : { deliveryFee: 3000, freeDeliveryThreshold: 14900, minOrderAmount: 0 };
+  const areaId = usePrefs((s) => s.areaId);
+  return useMemo(() => {
+    if (!data) return { deliveryFee: 3000, freeDeliveryThreshold: 14900, minOrderAmount: 0 };
+    const area = data.areas.find((a) => a.id === areaId);
+    return {
+      deliveryFee: area?.deliveryFee ?? data.settings.deliveryFee,
+      freeDeliveryThreshold: area?.freeDeliveryThreshold ?? data.settings.freeDeliveryThreshold,
+      minOrderAmount: area?.minOrderAmount ?? data.settings.minOrderAmount,
+    };
+  }, [data, areaId]);
 }
 
 export function useContact() {

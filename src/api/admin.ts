@@ -1,6 +1,7 @@
-import type { OrderStatus, RiderStatus, Role } from '@shared/core';
+import type { ExportKind, OrderStatus, RiderStatus, Role, StockReason } from '@shared/core';
 import { api, request } from './client';
-import type { Order, Product } from '@/types';
+import type { Analytics, CashSummary, Order, Product, ReturnRequestRow, RiderCash, TicketView } from '@/types';
+import { API_BASE } from '@/config/env';
 
 export interface AdminVariant {
   id?: string;
@@ -43,6 +44,10 @@ export interface AdminArea {
   sortOrder: number;
   lat: number | null;
   lng: number | null;
+  /** Paise; null = store-wide setting. */
+  minOrderAmount: number | null;
+  deliveryFee: number | null;
+  freeDeliveryThreshold: number | null;
 }
 
 export interface AdminSettings {
@@ -65,6 +70,55 @@ export interface AdminSettings {
   storeLng: number;
   /** Rupees paid to the rider per completed delivery. */
   riderPayoutPerDelivery: number;
+  lowStockThreshold: number;
+  orderConfirmTimeoutMinutes: number;
+  riderAcceptTimeoutMinutes: number;
+  gstin: string | null;
+  storeAddress: string | null;
+  gstRatePercent: number;
+  invoicePrefix: string;
+  returnWindowHours: number;
+}
+
+export interface AdminSlot {
+  id: string;
+  label: string;
+  start: string;
+  end: string;
+  capacity: number;
+  days: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface SystemStatus {
+  startedAt: string;
+  uptimeSeconds: number;
+  node: string;
+  environment: string;
+  database: { provider: string; bytes: number | null; orders: number; users: number };
+  jobs: Array<{ name: string; everyMs: number; lastRunAt: string | null; lastStatus: string | null; lastError: string | null; lastResult: string | null; runCount: number }>;
+}
+
+export interface LowStockItem {
+  variantId: string;
+  label: string;
+  stockQty: number;
+  isAvailable: boolean;
+  product: { id: string; name: string; slug: string; isActive: boolean };
+}
+
+export interface StockMovementRow {
+  id: string;
+  variantId: string;
+  variantLabel: string;
+  delta: number;
+  reason: StockReason;
+  note: string | null;
+  balanceAfter: number;
+  orderNumber: string | null;
+  user: { name: string; role: Role } | null;
+  createdAt: string;
 }
 
 export interface AdminCampaign {
@@ -144,6 +198,33 @@ export const adminApi = {
   riders: (status?: RiderStatus) => api.get<{ items: AdminRider[] }>('/admin/riders', { status }).then((r) => r.items),
   approveRider: (id: string) => api.post<{ rider: AdminRider }>(`/admin/riders/${id}/approve`),
   rejectRider: (id: string, reason?: string) => api.post<{ rider: AdminRider }>(`/admin/riders/${id}/reject`, { reason }),
+  lowStock: (threshold?: number) => api.get<{ threshold: number; items: LowStockItem[] }>('/admin/stock/low', { threshold }),
+  adjustStock: (variantId: string, body: { delta: number; reason: StockReason; note?: string }) =>
+    api.post<{ variant: { id: string; stockQty: number } }>(`/admin/variants/${variantId}/stock`, body).then((r) => r.variant),
+  stockMovements: (productId: string, page = 1) =>
+    api.get<{ total: number; totalPages: number; items: StockMovementRow[] }>(`/admin/products/${productId}/stock-movements`, { page }),
+  returnToStock: (orderId: string) => api.post<{ order: Order }>(`/admin/orders/${orderId}/return`).then((r) => r.order),
+  settlements: () => api.get<{ riders: Array<CashSummary & { id: string; name: string; phone: string; isActive: boolean }> }>('/admin/settlements').then((r) => r.riders),
+  riderCash: (riderId: string) => api.get<RiderCash & { rider: { id: string; name: string; phone: string } }>(`/admin/settlements/riders/${riderId}`),
+  recordSettlement: (riderId: string, amount: number, note?: string) => api.post(`/admin/settlements/riders/${riderId}`, { amount, note }),
+  receiveSettlement: (id: string) => api.post(`/admin/settlements/${id}/receive`),
+  slots: () => api.get<{ slots: AdminSlot[]; cutoff: string | null }>('/admin/delivery-slots'),
+  saveSlot: (body: Omit<AdminSlot, 'id'>, id?: string) =>
+    (id ? api.put<{ slot: AdminSlot }>(`/admin/delivery-slots/${id}`, body) : api.post<{ slot: AdminSlot }>('/admin/delivery-slots', body)).then((r) => r.slot),
+  disableSlot: (id: string) => api.delete(`/admin/delivery-slots/${id}`),
+  saveCutoff: (cutoff: string | null) => api.put('/admin/delivery-slots-cutoff', { cutoff }),
+  saveAreaFees: (id: string, fees: { minOrderAmount: number | null; deliveryFee: number | null; freeDeliveryThreshold: number | null }) => api.put(`/admin/areas/${id}/fees`, fees),
+  returns: (status?: string) => api.get<{ items: ReturnRequestRow[] }>('/admin/returns', { status }).then((r) => r.items),
+  decideReturn: (id: string, body: { approve: boolean; note?: string; refundMethod?: 'STORE_CREDIT' | 'CASH'; refundAmount?: number }) =>
+    api.post<{ request: ReturnRequestRow }>(`/admin/returns/${id}/decision`, body).then((r) => r.request),
+  analytics: (range: { from?: string; to?: string }) => api.get<Analytics>('/admin/analytics', range),
+  exportUrl: (kind: ExportKind, range: { from?: string; to?: string }) =>
+    `${API_BASE}/admin/exports/${kind}.csv?${new URLSearchParams(Object.entries(range).filter(([, v]) => v) as Array<[string, string]>).toString()}`,
+  tickets: (status?: string) => api.get<{ items: TicketView[] }>('/admin/tickets', { status }).then((r) => r.items),
+  ticket: (id: string) => api.get<{ ticket: TicketView }>(`/admin/tickets/${id}`).then((r) => r.ticket),
+  replyTicket: (id: string, body: string) => api.post<{ ticket: TicketView }>(`/admin/tickets/${id}/messages`, { body }).then((r) => r.ticket),
+  setTicketStatus: (id: string, status: TicketView['status']) => api.patch<{ ticket: TicketView }>(`/admin/tickets/${id}`, { status }).then((r) => r.ticket),
+  system: () => api.get<SystemStatus>('/admin/system'),
   resetOtp: (orderId: string) => api.post<{ order: Order }>(`/admin/orders/${orderId}/otp-reset`).then((r) => r.order),
   users: (q: { q?: string; role?: Role; page?: number }) => api.get<{ items: AdminUser[]; total: number; page: number; totalPages: number }>('/admin/users', q),
   createUser: (d: { name: string; phone: string; email?: string; password: string; role: Role; vehicleNumber?: string }) => api.post<{ user: AdminUser }>('/admin/users', d),

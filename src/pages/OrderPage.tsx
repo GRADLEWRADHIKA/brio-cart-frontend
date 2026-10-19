@@ -10,6 +10,7 @@ import { useContact } from '@/hooks/useStoreInfo';
 import { OrderStatusTracker, StatusPill } from '@/components/checkout/OrderStatusTracker';
 import { LiveTracking } from '@/components/checkout/LiveTracking';
 import { RateOrder } from '@/components/checkout/RateOrder';
+import { OrderExtras } from '@/components/account/OrderExtras';
 import { useReorder } from '@/hooks/useReorder';
 import { EditDeliveryAddress } from '@/components/checkout/EditDeliveryAddress';
 import { CreditCard, RotateCcw } from 'lucide-react';
@@ -180,6 +181,7 @@ export default function OrderPage() {
           )}
           <LiveTracking order={order} />
           <RateOrder order={order} accessKey={key ?? undefined} queryKey={['order', orderNumber, key]} />
+          <OrderExtras order={order} accessKey={key} />
           <section className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby="items-h">
             <h2 id="items-h" className="font-display text-2xl font-semibold text-forest-900">
               Items ({order.items.length})

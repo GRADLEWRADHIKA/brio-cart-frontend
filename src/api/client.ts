@@ -22,6 +22,7 @@ interface RequestOptions {
   body?: unknown;
   query?: Query;
   signal?: AbortSignal;
+  headers?: Record<string, string>;
 }
 
 function buildUrl(path: string, query?: Query) {
@@ -34,7 +35,8 @@ function buildUrl(path: string, query?: Query) {
 }
 
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  // X-Requested-With satisfies the API's CSRF check for cookie-authenticated requests.
+  const headers: Record<string, string> = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', ...opts.headers };
   let body: BodyInit | undefined;
   if (opts.body instanceof FormData) body = opts.body;
   else if (opts.body !== undefined) {

@@ -50,12 +50,17 @@ export const checkoutSchema = z.object({
     instructions: optionalText(300),
   }),
   deliverySlot: optionalText(60),
+  /** Admin-defined slot booking; required when the store has defined slots. */
+  deliverySlotId: optionalText(40),
+  deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Choose a delivery date').optional(),
   paymentMethod: z.enum(PAYMENT_METHODS),
   items: z.array(cartLineSchema).min(1, 'Your cart is empty').max(60),
   couponCode: optionalText(30),
   /** Shown to the customer before submit; the server rejects orders without it. */
   confirmed: z.literal(true, { message: 'Please confirm your order' }),
   saveAddress: z.boolean().optional(),
+  /** Signed-in customers: pay part or all of the order from store credit. */
+  useWalletCredit: z.boolean().optional(),
 });
 export type CheckoutInput = z.input<typeof checkoutSchema>;
 

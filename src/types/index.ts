@@ -1,4 +1,4 @@
-import type { DeliveryStatus, NotificationType, OrderStatus, OrderTotals, PaymentMethod, RiderStatus, Role } from '@shared/core';
+import type { DeliveryStatus, NotificationType, OrderStatus, OrderTotals, PaymentMethod, RiderStatus, Role, SlotAvailability } from '@shared/core';
 
 export interface Variant {
   id: string;
@@ -51,6 +51,10 @@ export interface DeliveryArea {
   pincode: string | null;
   lat: number | null;
   lng: number | null;
+  /** Area fee rules in paise; null = store-wide setting. */
+  minOrderAmount?: number | null;
+  deliveryFee?: number | null;
+  freeDeliveryThreshold?: number | null;
 }
 
 export interface StoreSettings {
@@ -69,6 +73,7 @@ export interface StoreSettings {
   acceptingOrders: boolean;
   /** Presentation mode: demo online checkout + delivery simulation, always labelled. */
   demoMode: boolean;
+  returnWindowHours?: number;
   storeLocation: LatLng;
 }
 
@@ -181,7 +186,11 @@ export interface Order {
   subtotal: number;
   discount: number;
   deliveryFee: number;
+  /** Amount still to pay after store credit. */
   total: number;
+  walletApplied?: number;
+  invoiceNumber?: string | null;
+  cancelReason?: string | null;
   items: Array<{
     id: string;
     productId: string | null;
@@ -245,4 +254,79 @@ export interface RiderEarnings {
   daily: Array<{ date: string; deliveries: number; amount: number }>;
   weekly: Array<{ weekStart: string; deliveries: number; amount: number }>;
   deliveries: Array<{ orderId: string; orderNumber: string; areaName: string; deliveredAt: string | null; payout: number }>;
+}
+
+export interface CashSummary {
+  collected: number;
+  handedIn: number;
+  pending: number;
+  balance: number;
+  cashOrders: number;
+}
+
+export interface CashSettlementRow {
+  id: string;
+  amount: number;
+  status: 'PENDING' | 'RECEIVED';
+  note: string | null;
+  createdAt: string;
+  receivedAt: string | null;
+}
+
+export interface RiderCash {
+  summary: CashSummary;
+  orders: Array<{ id: string; orderNumber: string; total: number; cashCollected: number; cashDifferenceReason: string | null; deliveredAt: string | null }>;
+  settlements: CashSettlementRow[];
+}
+
+export interface SlotDay {
+  date: string;
+  slots: SlotAvailability[];
+}
+
+export interface WalletView {
+  balance: number;
+  entries: Array<{ id: string; delta: number; reason: string; note: string | null; balanceAfter: number; orderNumber: string | null; createdAt: string }>;
+}
+
+export interface ReturnRequestRow {
+  id: string;
+  orderId: string;
+  orderNumber: string | null;
+  orderTotal: number | null;
+  reason: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  adminNote: string | null;
+  refundMethod: 'STORE_CREDIT' | 'CASH' | null;
+  refundAmount: number | null;
+  decidedAt: string | null;
+  createdAt: string;
+  customer?: { name: string; phone: string };
+}
+
+export interface TicketView {
+  id: string;
+  subject: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
+  orderNumber: string | null;
+  customer: { id: string; name: string; phone: string };
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  messages?: Array<{ id: string; body: string; author: { id: string; name: string } | null; fromStaff: boolean; createdAt: string }>;
+}
+
+export interface Analytics {
+  from: string;
+  to: string;
+  orderCount: number;
+  cancelledCount: number;
+  totalSales: number;
+  averageOrderValue: number;
+  byDay: Array<{ period: string; orders: number; sales: number }>;
+  byWeek: Array<{ period: string; orders: number; sales: number }>;
+  peakHours: Array<{ hour: number; orders: number }>;
+  topProducts: Array<{ productId: string | null; name: string; quantity: number; sales: number }>;
+  cancellationReasons: Array<{ reason: string; count: number }>;
+  riders: Array<{ riderId: string; name: string; attempted: number; delivered: number; payout: number; avgRating: number | null }>;
 }

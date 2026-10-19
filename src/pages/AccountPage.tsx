@@ -1,10 +1,13 @@
+import { CreditTab } from '@/components/account/CreditTab';
+import { SupportTab } from '@/components/support/SupportTab';
+import { SecurityPanel } from '@/components/account/SecurityPanel';
 import { useEffect, useState } from 'react';
 import { Link, Navigate, NavLink, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Bell, ChevronRight, LogOut, MapPin, Package, Pencil, Plus, RotateCcw, Star, Trash2, UserRound } from 'lucide-react';
+import { Bell, ChevronRight, LogOut, MapPin, Package, Pencil, Plus, RotateCcw, Star, Trash2, LifeBuoy, UserRound, Wallet } from 'lucide-react';
 import { useReorder } from '@/hooks/useReorder';
 import { addressSchema, formatINR, profileSchema } from '@shared';
 import { accountApi } from '@/api/endpoints';
@@ -22,6 +25,8 @@ import { cn, formatDate } from '@/utils';
 const TABS = [
   { key: 'orders', label: 'Orders', icon: Package },
   { key: 'addresses', label: 'Addresses', icon: MapPin },
+  { key: 'credit', label: 'Credit & returns', icon: Wallet },
+  { key: 'support', label: 'Support', icon: LifeBuoy },
   { key: 'profile', label: 'Profile', icon: UserRound },
 ] as const;
 
@@ -70,7 +75,14 @@ export default function AccountPage() {
       <div className="mt-8">
         {tab === 'orders' && <OrdersTab />}
         {tab === 'addresses' && <AddressesTab />}
-        {tab === 'profile' && <ProfileTab />}
+        {tab === 'profile' && (
+          <>
+            <ProfileTab />
+            <SecurityPanel />
+          </>
+        )}
+        {tab === 'credit' && <CreditTab />}
+        {tab === 'support' && <SupportTab />}
       </div>
     </div>
   );

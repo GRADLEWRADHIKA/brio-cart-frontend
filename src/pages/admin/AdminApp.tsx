@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { Bell, Bike, ExternalLink, LayoutDashboard, LogOut, Map as MapIcon, MapPin, Menu, Package, ScrollText, Settings, ShoppingCart, Tag, Tags, UserCheck, Users as UsersIcon, X } from 'lucide-react';
+import { Activity, Banknote, BarChart3, Bell, LifeBuoy, Bike, Boxes, Clock, Undo2, ExternalLink, LayoutDashboard, LogOut, Map as MapIcon, MapPin, Menu, Package, ScrollText, Settings, ShoppingCart, Tag, Tags, UserCheck, Users as UsersIcon, X } from 'lucide-react';
 import { hasPermission, ROLE_LABELS, type Permission } from '@shared/core';
 import { useAuth } from '@/hooks/useAuth';
 import { Logo } from '@/components/ui/Brand';
@@ -25,20 +25,34 @@ const Users = lazy(() => import('./Users'));
 const RiderApprovals = lazy(() => import('./RiderApprovals'));
 const AuditLog = lazy(() => import('./AuditLog'));
 const AdminNotifications = lazy(() => import('./Notifications'));
+const Stock = lazy(() => import('./Stock'));
+const Settlements = lazy(() => import('./Settlements'));
+const DeliverySlots = lazy(() => import('./DeliverySlots'));
+const Returns = lazy(() => import('./Returns'));
+const Analytics = lazy(() => import('./Analytics'));
+const Tickets = lazy(() => import('./Tickets'));
+const SystemStatus = lazy(() => import('./SystemStatus'));
 
 /** Navigation is filtered by the shared permission map; the API enforces the same map. */
 const NAV: Array<{ to: string; label: string; icon: typeof Bell; end?: boolean; permission: Permission }> = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true, permission: 'order:view_all' },
   { to: '/admin/live', label: 'Live operations', icon: MapIcon, permission: 'order:view_all' },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingCart, permission: 'order:view_all' },
+  { to: '/admin/analytics', label: 'Analytics', icon: BarChart3, permission: 'analytics:view' },
+  { to: '/admin/tickets', label: 'Support', icon: LifeBuoy, permission: 'support:manage' },
+  { to: '/admin/returns', label: 'Returns', icon: Undo2, permission: 'return:manage' },
   { to: '/admin/riders', label: 'Delivery partners', icon: Bike, permission: 'rider:view' },
+  { to: '/admin/settlements', label: 'Rider cash', icon: Banknote, permission: 'settlement:manage' },
   { to: '/admin/rider-approvals', label: 'Rider approvals', icon: UserCheck, permission: 'rider:approve' },
   { to: '/admin/coupons', label: 'Coupons', icon: Tag, permission: 'coupon:manage' },
   { to: '/admin/products', label: 'Products', icon: Package, permission: 'catalog:view' },
+  { to: '/admin/stock', label: 'Stock', icon: Boxes, permission: 'stock:view' },
   { to: '/admin/categories', label: 'Categories', icon: Tags, permission: 'category:manage' },
+  { to: '/admin/slots', label: 'Delivery slots', icon: Clock, permission: 'slot:manage' },
   { to: '/admin/areas', label: 'Delivery areas', icon: MapPin, permission: 'settings:manage' },
   { to: '/admin/settings', label: 'Settings & campaigns', icon: Settings, permission: 'settings:manage' },
   { to: '/admin/users', label: 'Users', icon: UsersIcon, permission: 'user:manage' },
+  { to: '/admin/system', label: 'System status', icon: Activity, permission: 'system:status' },
   { to: '/admin/audit', label: 'Audit log', icon: ScrollText, permission: 'audit:view' },
   { to: '/admin/notifications', label: 'Notifications', icon: Bell, permission: 'notification:read' },
 ];
@@ -120,6 +134,13 @@ function Shell() {
                 <Route path="products" element={guard('catalog:view', <Products />)} />
                 <Route path="products/new" element={guard('product:create', <ProductEditor />)} />
                 <Route path="products/:id" element={guard('product:update', <ProductEditor />)} />
+                <Route path="settlements" element={guard('settlement:manage', <Settlements />)} />
+                <Route path="system" element={guard('system:status', <SystemStatus />)} />
+                <Route path="analytics" element={guard('analytics:view', <Analytics />)} />
+                <Route path="tickets" element={guard('support:manage', <Tickets />)} />
+                <Route path="returns" element={guard('return:manage', <Returns />)} />
+                <Route path="slots" element={guard('slot:manage', <DeliverySlots />)} />
+                <Route path="stock" element={guard('stock:view', <Stock />)} />
                 <Route path="categories" element={guard('category:manage', <Categories />)} />
                 <Route path="areas" element={guard('settings:manage', <Areas />)} />
                 <Route path="settings" element={guard('settings:manage', <StoreSettingsPage />)} />

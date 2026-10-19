@@ -15,7 +15,7 @@ function SettingsForm({ initial }: { initial: AdminSettings }) {
   const form = useForm<AdminSettings>({ defaultValues: initial });
   const save = useMutation({
     mutationFn: (v: AdminSettings) =>
-      adminApi.saveSettings({ ...v, deliveryFee: Number(v.deliveryFee), freeDeliveryThreshold: Number(v.freeDeliveryThreshold), minOrderAmount: Number(v.minOrderAmount), riderPayoutPerDelivery: Number(v.riderPayoutPerDelivery), deliverySlots: slots.map((s) => s.trim()).filter(Boolean), supportEmail: v.supportEmail || null, deliveryNote: v.deliveryNote || null }),
+      adminApi.saveSettings({ ...v, deliveryFee: Number(v.deliveryFee), freeDeliveryThreshold: Number(v.freeDeliveryThreshold), minOrderAmount: Number(v.minOrderAmount), riderPayoutPerDelivery: Number(v.riderPayoutPerDelivery), lowStockThreshold: Number(v.lowStockThreshold), orderConfirmTimeoutMinutes: Number(v.orderConfirmTimeoutMinutes), riderAcceptTimeoutMinutes: Number(v.riderAcceptTimeoutMinutes), gstRatePercent: Number(v.gstRatePercent), returnWindowHours: Number(v.returnWindowHours), gstin: v.gstin || null, storeAddress: v.storeAddress || null, deliverySlots: slots.map((s) => s.trim()).filter(Boolean), supportEmail: v.supportEmail || null, deliveryNote: v.deliveryNote || null }),
     onSuccess: (s) => {
       form.reset(s);
       setSlots(s.deliverySlots);
@@ -45,6 +45,14 @@ function SettingsForm({ initial }: { initial: AdminSettings }) {
           <TextField label="Free delivery from (₹)" type="number" min={0} step="0.01" {...register('freeDeliveryThreshold')} hint="0 = never free" />
           <TextField label="Minimum order (₹)" type="number" min={0} step="0.01" {...register('minOrderAmount')} hint="0 = no minimum" />
           <TextField label="Rider payout per delivery (₹)" type="number" min={0} step="0.01" {...register('riderPayoutPerDelivery')} error={fields?.riderPayoutPerDelivery} hint="Shown on the rider earnings page. Applies to deliveries completed after saving." />
+          <TextField label="Low-stock alert at (units)" type="number" min={0} step="1" {...register('lowStockThreshold')} error={fields?.lowStockThreshold} />
+          <TextField label="Auto-cancel unconfirmed orders after (minutes)" type="number" min={0} step="1" {...register('orderConfirmTimeoutMinutes')} error={fields?.orderConfirmTimeoutMinutes} hint="0 = never. Stock is returned." />
+          <TextField label="Reassign if rider hasn't accepted in (minutes)" type="number" min={0} step="1" {...register('riderAcceptTimeoutMinutes')} error={fields?.riderAcceptTimeoutMinutes} hint="0 = never. Admins are notified." />
+          <TextField label="Return window (hours after delivery)" type="number" min={0} step="1" {...register('returnWindowHours')} error={fields?.returnWindowHours} hint="0 = returns off" />
+          <TextField label="GSTIN" optional {...register('gstin')} error={fields?.gstin} hint="Shown on invoices" />
+          <TextField label="GST rate (%)" type="number" min={0} max={28} step="0.5" {...register('gstRatePercent')} error={fields?.gstRatePercent} hint="Prices include GST; the invoice shows the split" />
+          <TextField label="Invoice prefix" {...register('invoicePrefix')} error={fields?.invoicePrefix} />
+          <TextField label="Store address (for invoices)" optional {...register('storeAddress')} error={fields?.storeAddress} className="sm:col-span-2" />
           <TextField label="Delivery note" optional {...register('deliveryNote')} className="sm:col-span-3" />
         </div>
         <p className="mb-2 mt-5 text-sm font-extrabold text-charcoal-700">Delivery slots</p>
