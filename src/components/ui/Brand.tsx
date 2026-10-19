@@ -1,48 +1,25 @@
 import { cn } from '@/utils';
+import logoColor from '@/assets/brand/brio-logo.png';
+import logoIvory from '@/assets/brand/brio-logo-ivory.png';
+import markColor from '@/assets/brand/brio-mark.png';
+import markIvory from '@/assets/brand/brio-mark-ivory.png';
 
 /**
- * Brio Cart mark: the cart-with-motion-lines from the original logo, redrawn as a single
- * botanical line drawing with a sprouting leaf.
+ * Brio Cart brand, from the official logo (bag with a "B" and speed lines).
+ * `tone="forest"` is the full-colour version for light backgrounds; `tone="ivory"` is the
+ * light version for dark backgrounds (footer, admin sidebar, rider app).
  */
 export function BrioMark({ className, tone = 'forest' }: { className?: string; tone?: 'forest' | 'ivory' }) {
-  const fg = tone === 'forest' ? '#113a25' : '#fdfbf6';
-  const leaf = tone === 'forest' ? '#3d9a62' : '#c8e86b';
-  return (
-    <svg viewBox="0 0 48 48" className={className} aria-hidden fill="none">
-      <path d="M3 17h7M1.5 22.5h7M4 28h6" stroke={leaf} strokeWidth="2.6" strokeLinecap="round" />
-      <path
-        d="M11 9h4.2c.9 0 1.7.6 1.9 1.5L22 31.5c.2.9 1 1.5 1.9 1.5h13.4c.9 0 1.6-.6 1.9-1.4l3.6-12.2c.4-1.3-.6-2.6-1.9-2.6H18"
-        stroke={fg}
-        strokeWidth="2.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="24.5" cy="40" r="3" fill={fg} />
-      <circle cx="36.5" cy="40" r="3" fill={fg} />
-      <path d="M30.5 23.5c-.3-5 2.7-9.6 9.8-10.7.6 6.4-3.2 10.4-9.8 10.7Z" fill={leaf} />
-      <path d="M30.6 23.4c1.6-3.3 3.6-5.4 6-6.8" stroke={tone === 'forest' ? '#fdfbf6' : '#113a25'} strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
+  return <img src={tone === 'forest' ? markColor : markIvory} alt="" aria-hidden className={cn('object-contain', className)} />;
 }
 
 export function Logo({ className, tone = 'forest', compact }: { className?: string; tone?: 'forest' | 'ivory'; compact?: boolean }) {
   return (
-    <span className={cn('inline-flex items-center gap-2', className)}>
-      <BrioMark className="size-9 shrink-0" tone={tone} />
-      {!compact && (
-        <span className="flex flex-col leading-none">
-          <span
-            className={cn(
-              'font-display text-[1.45rem] font-semibold tracking-[-0.03em] display-soft',
-              tone === 'forest' ? 'text-forest-800' : 'text-ivory-50',
-            )}
-          >
-            Brio<span className={tone === 'forest' ? 'text-leaf-500' : 'text-lime-300'}>Cart</span>
-          </span>
-          <span className={cn('mt-0.5 text-[0.56rem] font-extrabold uppercase tracking-[0.22em]', tone === 'forest' ? 'text-charcoal-500' : 'text-ivory-50/60')}>
-            Fresh · Safe · Responsible
-          </span>
-        </span>
+    <span className={cn('inline-flex items-center', className)}>
+      {compact ? (
+        <BrioMark className="h-9 w-auto shrink-0" tone={tone} />
+      ) : (
+        <img src={tone === 'forest' ? logoColor : logoIvory} alt="Brio Cart" className="h-9 w-auto shrink-0 sm:h-10" />
       )}
     </span>
   );
