@@ -6,7 +6,7 @@ import { DELIVERY_OTP_LENGTH, DELIVERY_STATUS_LABELS, formatINR, ORDER_STATUS_LA
 import { riderApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/hooks/useAuth';
-import type { Order } from '@/types';
+import type { AvailableOrder, Order } from '@/types';
 import { BrioMark } from '@/components/ui/Brand';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/misc';
@@ -320,6 +320,46 @@ function OnlineToggle({ online, onChange, pending, loc, onRoad }: { online: bool
   );
 }
 
+function AvailableOrders({ online }: { online: boolean }) {
+  const qc = useQueryClient();
+  const { data, error } = useQuery({ queryKey: ['rider', 'available'], queryFn: riderApi.available, enabled: online, refetchInterval: online ? 15_000 : false });
+  const claim = useMutation({
+    mutationFn: riderApi.claim,
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['rider', 'available'] });
+      qc.invalidateQueries({ queryKey: ['rider', 'orders'] });
+    },
+  });
+  if (!online) return null;
+  const items: AvailableOrder[] = data?.items ?? [];
+  return (
+    <section className="mt-4 space-y-3" aria-labelledby="available-h">
+      <h2 id="available-h" className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-charcoal-500">
+        <PackageCheck className="size-4" /> Available to pick up
+      </h2>
+      {error && <p className="rounded-2xl bg-tomato-100 p-4 text-sm font-semibold text-tomato-500">{error instanceof ApiError ? error.message : 'Could not load orders'}</p>}
+      {claim.error && <p className="rounded-2xl bg-tomato-100 p-4 text-sm font-semibold text-tomato-500">{(claim.error as Error).message}</p>}
+      {data && items.length === 0 && <p className="rounded-[1.5rem] bg-white p-6 text-center text-sm text-charcoal-500 shadow-soft">No orders waiting right now.</p>}
+      {items.map((o) => (
+        <article key={o.id} className="flex items-center gap-3 rounded-[1.5rem] bg-white p-4 shadow-soft">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-sm font-bold">{o.orderNumber}</p>
+            <p className="truncate text-sm text-charcoal-500">
+              <MapPin className="mr-1 inline size-3.5" />
+              {o.areaName} · {o.itemCount} item{o.itemCount === 1 ? '' : 's'} · {formatINR(o.total)}
+              {o.paymentMethod === 'COD' ? ' · Cash' : ''}
+            </p>
+            {(o.deliverySlot || o.deliveryDate) && <p className="text-xs text-charcoal-400">{[o.deliveryDate, o.deliverySlot].filter(Boolean).join(' · ')}</p>}
+          </div>
+          <Button size="sm" disabled={claim.isPending} onClick={() => claim.mutate(o.id)}>
+            Take order
+          </Button>
+        </article>
+      ))}
+    </section>
+  );
+}
+
 function Deliveries() {
   const qc = useQueryClient();
   const me = useQuery({ queryKey: ['rider', 'me'], queryFn: riderApi.me });
@@ -364,6 +404,7 @@ function Deliveries() {
           ))}
         </section>
       )}
+      <AvailableOrders online={online} />
       <section className="mt-4 space-y-3" aria-labelledby="assigned-h">
         <h2 id="assigned-h" className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-charcoal-500">
           <Package className="size-4" /> Assigned to you
@@ -372,7 +413,7 @@ function Deliveries() {
           <div className="rounded-[1.5rem] bg-white p-8 text-center shadow-soft">
             <Package className="mx-auto size-10 text-leaf-500" />
             <p className="mt-3 font-extrabold">No new assignments</p>
-            <p className="text-sm text-charcoal-500">{online ? 'New orders appear here automatically.' : 'Go online so the store can assign you orders.'}</p>
+            <p className="text-sm text-charcoal-500">{online ? 'Take an order above, or wait for the store to assign one.' : 'Go online to see orders you can pick up.'}</p>
           </div>
         )}
         {assigned.map((o) => (

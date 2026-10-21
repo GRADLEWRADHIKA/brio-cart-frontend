@@ -49,6 +49,7 @@ export const PERMISSIONS = [
   'system:status',
   // Rider
   'delivery:update',
+  'delivery:claim',
   'earnings:view',
   'cash:view_own',
 ] as const;
@@ -78,7 +79,7 @@ const STAFF: readonly Permission[] = [
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   CUSTOMER: ['order:place', 'order:view_own', 'address:manage', 'invoice:view_own', 'return:request', 'wallet:view_own', 'support:open', 'notification:read', 'account:sessions', 'account:export', 'account:delete'],
-  RIDER: ['delivery:update', 'earnings:view', 'cash:view_own', 'notification:read', 'account:sessions', 'account:export'],
+  RIDER: ['delivery:update', 'delivery:claim', 'earnings:view', 'cash:view_own', 'notification:read', 'account:sessions', 'account:export'],
   ADMIN: STAFF,
   SUPERADMIN: [
     ...STAFF,

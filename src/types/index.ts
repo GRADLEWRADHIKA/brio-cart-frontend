@@ -25,6 +25,19 @@ export interface Product {
   variants: Variant[];
 }
 
+/** A confirmed order no rider has taken yet (rider open pool). */
+export interface AvailableOrder {
+  id: string;
+  orderNumber: string;
+  areaName: string;
+  deliveryDate: string | null;
+  deliverySlot: string | null;
+  paymentMethod: string;
+  total: number;
+  itemCount: number;
+  createdAt: string;
+}
+
 export interface ProductPage {
   items: Product[];
   page: number;

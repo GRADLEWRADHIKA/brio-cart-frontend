@@ -1,7 +1,7 @@
 import type { CheckoutInput, OrderAddressInput, RiderRegisterInput } from '@shared';
 import { api, request } from './client';
 import { API_BASE } from '@/config/env';
-import type { Address, AppNotification, CartValidation, Category, NotificationPage, Order, Product, ProductPage, ReturnRequestRow, RiderCash, RiderEarnings, SlotDay, TicketView, WalletView, RiderProfile, StoreInfo, User } from '@/types';
+import type { Address, AppNotification, AvailableOrder, CartValidation, Category, NotificationPage, Order, Product, ProductPage, ReturnRequestRow, RiderCash, RiderEarnings, SlotDay, TicketView, WalletView, RiderProfile, StoreInfo, User } from '@/types';
 
 export interface ProductFilters {
   category?: string;
@@ -76,6 +76,8 @@ export const riderApi = {
   setOnline: (online: boolean) => api.patch<{ online: boolean }>('/rider/status', { online }).then((r) => r.online),
   orders: () => api.get<{ items: Order[] }>('/rider/orders').then((r) => r.items),
   history: (page = 1) => api.get<{ items: Order[]; total: number; page: number; totalPages: number }>('/rider/orders/history', { page }),
+  available: () => api.get<{ items: AvailableOrder[]; online: boolean }>('/rider/orders/available'),
+  claim: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/claim`).then((r) => r.order),
   accept: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/accept`).then((r) => r.order),
   reject: (id: string, reason?: string) => api.post<{ ok: true }>(`/rider/orders/${id}/reject`, { reason }),
   pickup: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/pickup`).then((r) => r.order),
