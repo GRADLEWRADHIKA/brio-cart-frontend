@@ -84,6 +84,32 @@ test.describe('admin', () => {
     await customer.close();
   });
 
+  test('dashboard shows store alerts and the daily summary reflects a new order', async ({ page, browser }) => {
+    const customer = await browser.newContext();
+    const cp = await customer.newPage();
+    await cp.goto('/product/onion');
+    await cp.getByRole('button', { name: /Add to cart/ }).click();
+    await cp.goto('/checkout');
+    await fillCheckout(cp);
+    await cp.getByRole('checkbox', { name: /I confirm my order of/ }).check();
+    await cp.getByRole('button', { name: /Place order/ }).click();
+    await expect(cp.getByRole('heading', { name: 'Order placed, thank you!' })).toBeVisible();
+    await customer.close();
+
+    const { phone, password } = adminCredentials();
+    await signIn(page, phone, password);
+    // The seeded campaign has ended, so the dashboard says no campaign is running.
+    const alerts = page.getByRole('region', { name: 'Store alerts' });
+    await expect(alerts.getByText(/No campaign on the homepage|ends in/)).toBeVisible();
+
+    await page.getByRole('link', { name: 'Daily summary' }).click();
+    await expect(page.getByRole('heading', { name: 'Daily summary' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Top products' })).toBeVisible();
+    await expect(page.getByText(/^Onion ×\d+$/)).toBeVisible();
+    await page.getByRole('button', { name: 'Previous day' }).click();
+    await expect(page.getByRole('button', { name: 'Today' })).toBeVisible();
+  });
+
   test('delivery areas are enforced at checkout after an admin disables one', async ({ page, browser }) => {
     const { phone, password } = adminCredentials();
     await signIn(page, phone, password, '/admin/areas');

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Role } from '@shared/core';
+import { hasPermission, type Role } from '@shared/core';
 import type { AppNotification } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotificationActions, useNotificationList, useUnreadCount } from '@/hooks/useNotifications';
@@ -11,7 +11,12 @@ import { cn, formatDate } from '@/utils';
 
 /** Where a notification leads for each role. */
 export function notificationHref(n: AppNotification, role: Role | undefined): string | null {
-  if (role === 'ADMIN' || role === 'SUPERADMIN') return n.orderId ? `/admin/orders/${n.orderId}` : null;
+  if (role === 'ADMIN' || role === 'SUPERADMIN') {
+    if (n.type === 'LOW_STOCK') return '/admin/stock';
+    if (n.type === 'CAMPAIGN_ENDING') return hasPermission(role, 'settings:manage') ? '/admin/settings' : '/admin';
+    if (n.type === 'DAILY_SUMMARY') return '/admin/daily';
+    return n.orderId ? `/admin/orders/${n.orderId}` : null;
+  }
   if (role === 'RIDER') return '/rider';
   return n.orderNumber ? `/orders/${n.orderNumber}` : null;
 }

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { Activity, Banknote, BarChart3, Bell, LifeBuoy, Bike, Boxes, Clock, Undo2, ExternalLink, LayoutDashboard, LogOut, Map as MapIcon, MapPin, Menu, Package, ScrollText, Settings, ShoppingCart, Tag, Tags, UserCheck, Users as UsersIcon, X } from 'lucide-react';
+import { Activity, Banknote, BarChart3, Bell, CalendarDays, LifeBuoy, Bike, Boxes, Clock, Undo2, ExternalLink, LayoutDashboard, LogOut, Map as MapIcon, MapPin, Menu, Package, ScrollText, Settings, ShoppingCart, Tag, Tags, UserCheck, Users as UsersIcon, X } from 'lucide-react';
 import { hasPermission, ROLE_LABELS, type Permission } from '@shared/core';
 import { useAuth } from '@/hooks/useAuth';
 import { Logo } from '@/components/ui/Brand';
@@ -30,6 +30,7 @@ const Settlements = lazy(() => import('./Settlements'));
 const DeliverySlots = lazy(() => import('./DeliverySlots'));
 const Returns = lazy(() => import('./Returns'));
 const Analytics = lazy(() => import('./Analytics'));
+const DailySummary = lazy(() => import('./DailySummary'));
 const Tickets = lazy(() => import('./Tickets'));
 const SystemStatus = lazy(() => import('./SystemStatus'));
 
@@ -38,6 +39,7 @@ const NAV: Array<{ to: string; label: string; icon: typeof Bell; end?: boolean; 
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true, permission: 'order:view_all' },
   { to: '/admin/live', label: 'Live operations', icon: MapIcon, permission: 'order:view_all' },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingCart, permission: 'order:view_all' },
+  { to: '/admin/daily', label: 'Daily summary', icon: CalendarDays, permission: 'analytics:view' },
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart3, permission: 'analytics:view' },
   { to: '/admin/tickets', label: 'Support', icon: LifeBuoy, permission: 'support:manage' },
   { to: '/admin/returns', label: 'Returns', icon: Undo2, permission: 'return:manage' },
@@ -137,6 +139,7 @@ function Shell() {
                 <Route path="settlements" element={guard('settlement:manage', <Settlements />)} />
                 <Route path="system" element={guard('system:status', <SystemStatus />)} />
                 <Route path="analytics" element={guard('analytics:view', <Analytics />)} />
+                <Route path="daily" element={guard('analytics:view', <DailySummary />)} />
                 <Route path="tickets" element={guard('support:manage', <Tickets />)} />
                 <Route path="returns" element={guard('return:manage', <Returns />)} />
                 <Route path="slots" element={guard('slot:manage', <DeliverySlots />)} />

@@ -143,6 +143,35 @@ export interface Summary {
   activeProducts: number;
   unavailableVariants: number;
   recentOrders: Order[];
+  alerts: DashboardAlerts;
+}
+
+export type CampaignAlert =
+  | { kind: 'ENDING'; campaignId: string; title: string; endsAt: string; hoursLeft: number }
+  | { kind: 'NONE_RUNNING'; lastTitle: string | null; lastEndedAt: string | null; nextStartsAt: string | null };
+
+export interface DashboardAlerts {
+  campaigns: CampaignAlert[];
+  lowStock: { threshold: number; count: number; items: LowStockItem[] };
+}
+
+interface DayTotals {
+  day: string;
+  orders: number;
+  sales: number;
+  averageOrderValue: number;
+  cancelled: number;
+}
+
+/** One India-time day of sales (paise), with the day before for comparison. */
+export interface DailySummary extends DayTotals {
+  itemsSold: number;
+  delivered: number;
+  cashOnDelivery: number;
+  byArea: Array<{ area: string; orders: number; sales: number }>;
+  previous: DayTotals;
+  topProducts: Array<{ productId: string; name: string; quantity: number; sales: number }>;
+  lastSevenDays: Array<{ day: string; orders: number; sales: number }>;
 }
 
 /** Product payloads use rupees; the API converts to paise. */
@@ -218,6 +247,7 @@ export const adminApi = {
   decideReturn: (id: string, body: { approve: boolean; note?: string; refundMethod?: 'STORE_CREDIT' | 'CASH'; refundAmount?: number }) =>
     api.post<{ request: ReturnRequestRow }>(`/admin/returns/${id}/decision`, body).then((r) => r.request),
   analytics: (range: { from?: string; to?: string }) => api.get<Analytics>('/admin/analytics', range),
+  dailySummary: (date?: string) => api.get<DailySummary>('/admin/reports/daily', { date }),
   exportUrl: (kind: ExportKind, range: { from?: string; to?: string }) =>
     `${API_BASE}/admin/exports/${kind}.csv?${new URLSearchParams(Object.entries(range).filter(([, v]) => v) as Array<[string, string]>).toString()}`,
   tickets: (status?: string) => api.get<{ items: TicketView[] }>('/admin/tickets', { status }).then((r) => r.items),

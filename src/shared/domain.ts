@@ -130,6 +130,9 @@ export const NOTIFICATION_TYPES = [
   'TICKET_OPENED',
   'TICKET_REPLY',
   'TICKET_STATUS',
+  'LOW_STOCK',
+  'CAMPAIGN_ENDING',
+  'DAILY_SUMMARY',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

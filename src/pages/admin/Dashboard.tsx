@@ -5,15 +5,19 @@ import { formatINR, ORDER_STATUSES, ORDER_STATUS_LABELS } from '@shared/core';
 import { adminApi } from '@/api/admin';
 import { Card, PageHeader, Stat, td, th } from '@/components/admin/kit';
 import { StatusPill } from '@/components/checkout/OrderStatusTracker';
+import { DashboardAlerts } from '@/components/admin/DashboardAlerts';
+import { useAuth } from '@/hooks/useAuth';
 import { formatDate } from '@/utils';
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const { data, isLoading, error } = useQuery({ queryKey: ['admin', 'summary'], queryFn: adminApi.summary, refetchInterval: 30_000 });
   if (error) return <p className="text-tomato-500">{(error as Error).message}</p>;
   const s = data;
   return (
     <>
       <PageHeader title="Good to see you" subtitle="Today’s orders and store health at a glance. Refreshes every 30 seconds." />
+      {s && <DashboardAlerts alerts={s.alerts} role={user?.role} />}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat tone="lime" label="Orders today" value={isLoading ? '–' : s!.ordersToday} />
         <Stat label="Revenue today" value={isLoading ? '–' : formatINR(s!.revenueToday)} hint="Excludes cancelled orders" />
