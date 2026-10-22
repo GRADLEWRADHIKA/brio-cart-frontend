@@ -7,7 +7,10 @@ test.describe('customer journey', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Your Everyday');
     await expect(page.getByRole('heading', { name: 'Fresh Vegetables' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Daily Essentials' })).toBeVisible();
-    await expect(page.getByText('इस नवरात्रि, ताज़गी और अच्छी गुणवत्ता के साथ करें शुभ शुरुआत!')).toBeVisible();
+    // The seeded Navratri campaign runs until 21 Oct 2026 (IST); after that the banner is correctly hidden.
+    if (Date.now() <= new Date('2026-10-21T23:59:59+05:30').getTime()) {
+      await expect(page.getByText('इस नवरात्रि, ताज़गी और अच्छी गुणवत्ता के साथ करें शुभ शुरुआत!')).toBeVisible();
+    }
     await expect(page.getByRole('heading', { name: 'Bestsellers' })).toBeVisible();
     await expect(page.getByText('Fresh groceries. Fair prices. Delivered with care.')).toBeVisible();
     for (const area of ['Aliganj', 'Vikas Nagar', 'Mahanagar', 'Nirala Nagar', 'Kalyanpur']) {
@@ -53,12 +56,12 @@ test.describe('customer journey', () => {
 
     // Switch pack size from the cart
     await line.getByRole('combobox').selectOption({ label: '500 ml · ₹36' });
-    await expect(line.getByText('₹72')).toBeVisible();
+    await expect(line.getByText('₹72', { exact: true })).toBeVisible();
 
     // Persisted across a reload
     await page.reload();
     await expect(cartPage.getByTestId('cart-line')).toHaveCount(1);
-    await expect(cartPage.getByTestId('cart-line').getByText('₹72')).toBeVisible();
+    await expect(cartPage.getByTestId('cart-line').getByText('₹72', { exact: true })).toBeVisible();
 
     // Remove → empty state with Continue Shopping
     await cartPage.getByRole('button', { name: /Remove .* from cart/ }).click();

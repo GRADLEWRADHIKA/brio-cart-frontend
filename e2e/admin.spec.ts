@@ -41,6 +41,8 @@ test.describe('admin', () => {
     await page.getByLabel('Price (₹)', { exact: true }).fill('89');
     await page.getByRole('button', { name: 'Create product' }).click();
     await expect(page).toHaveURL(/\/admin\/products\/[a-z0-9]+$/);
+    // The edit form re-initialises from the saved product once the route switches; wait for it before typing.
+    await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
 
     await page.getByLabel('Price (₹)', { exact: true }).fill('95');
     await page.getByLabel('Old price (₹)').fill('110');

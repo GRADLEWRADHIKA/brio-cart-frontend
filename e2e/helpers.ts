@@ -12,8 +12,13 @@ export function adminCredentials(): { phone: string; password: string } {
 
 export async function adminToken(request: APIRequestContext) {
   const { phone, password } = adminCredentials();
-  const res = await request.post(`${API}/auth/login`, { data: { identifier: phone, password } });
-  expect(res.ok()).toBeTruthy();
+  // The request context keeps the session cookie from earlier logins, so send the header the web app
+  // sends to pass the API's CSRF check for cookie-carrying requests.
+  const res = await request.post(`${API}/auth/login`, {
+    data: { identifier: phone, password },
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+  });
+  expect(res.ok(), `admin login failed: ${res.status()} ${await res.text()}`).toBeTruthy();
   return (await res.json()).token as string;
 }
 
