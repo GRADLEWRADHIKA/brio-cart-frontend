@@ -4,13 +4,13 @@ import { useUi } from '@/store/ui';
 import { useCartTotals } from '@/hooks/useCartTotals';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/misc';
-import { CartLineItem, FreeDeliveryMeter, TotalsTable } from './CartBits';
+import { CartLineItem, FreeDeliveryMeter, SellerSplit, TotalsTable } from './CartBits';
 import { cn } from '@/utils';
 
 export function CartDrawer() {
   const open = useUi((s) => s.cartOpen);
   const setOpen = useUi((s) => s.setCartOpen);
-  const { totals, rules, lines } = useCartTotals();
+  const { totals, rules, lines, groups } = useCartTotals();
   const panel = useRef<HTMLDivElement>(null);
   const close = () => setOpen(false);
 
@@ -55,7 +55,7 @@ export function CartDrawer() {
         ) : (
           <>
             <div className="flex-1 overflow-y-auto px-5">
-              <FreeDeliveryMeter totals={totals} threshold={rules.freeDeliveryThreshold} className="mt-4" />
+              {groups.length > 1 ? <SellerSplit groups={groups} className="mt-4" /> : <FreeDeliveryMeter totals={totals} threshold={rules.freeDeliveryThreshold} className="mt-4" />}
               <ul className="divide-y divide-line">
                 {lines.map((l) => (
                   <CartLineItem key={l.variantId} line={l} compact onNavigate={close} />

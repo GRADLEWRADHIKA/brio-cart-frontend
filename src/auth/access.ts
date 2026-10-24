@@ -7,7 +7,8 @@ import { homePathFor, type Role } from '@shared/core';
 export function pathAllowedFor(role: Role | null, path: string): boolean {
   const p = path.split(/[?#]/)[0] ?? '/';
   if (p === '/admin' || p.startsWith('/admin/')) return role === 'ADMIN' || role === 'SUPERADMIN';
-  if (p === '/rider/register') return role === null;
+  if (p === '/rider/register' || p === '/seller/register') return role === null;
+  if (p === '/seller' || p.startsWith('/seller/')) return role === 'SHOP_OWNER';
   if (p === '/rider' || p.startsWith('/rider/')) return role === 'RIDER';
   if (p === '/account' || p.startsWith('/account/') || p === '/notifications') return role === 'CUSTOMER';
   // Guests may check out; staff and riders may not place orders on their work accounts.

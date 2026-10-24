@@ -4,11 +4,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { ArrowLeft, ImageUp, Plus, Trash2 } from 'lucide-react';
 import { COLLECTIONS } from '@shared/core';
-import { adminApi, type AdminProduct, type ProductPayload } from '@/api/admin';
+import { type AdminProduct, type ProductPayload } from '@/api/admin';
 import { ApiError } from '@/api/client';
 import { Card, PageHeader, Toggle } from '@/components/admin/kit';
 import { Checkbox, SelectField, TextAreaField, TextField } from '@/components/forms/Field';
 import { Button } from '@/components/ui/Button';
+import { useCatalogScope } from '@/components/admin/CatalogScope';
 import { ProductImage } from '@/components/ui/misc';
 
 interface FormValues {
@@ -47,14 +48,15 @@ function toForm(p?: AdminProduct): FormValues {
 }
 
 export default function ProductEditor() {
+  const scope = useCatalogScope();
   const { id } = useParams();
   const isNew = !id;
   const navigate = useNavigate();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const { data: categories } = useQuery({ queryKey: ['admin', 'categories'], queryFn: adminApi.categories });
-  const { data: product, isLoading } = useQuery({ queryKey: ['admin', 'product', id], queryFn: () => adminApi.product(id!), enabled: !isNew });
+  const { data: categories } = useQuery({ queryKey: [scope.key, 'categories'], queryFn: scope.api.categories });
+  const { data: product, isLoading } = useQuery({ queryKey: [scope.key, 'product', id], queryFn: () => scope.api.product(id!), enabled: !isNew });
 
   const form = useForm<FormValues>({ defaultValues: toForm() });
   const { register, control, handleSubmit, reset, setValue, watch, setError, formState } = form;
@@ -88,12 +90,12 @@ export default function ProductEditor() {
           maxPerOrder: Number(x.maxPerOrder) || 10,
         })),
       };
-      return isNew ? adminApi.createProduct(payload) : adminApi.updateProduct(id!, payload);
+      return isNew ? scope.api.createProduct(payload) : scope.api.updateProduct(id!, payload);
     },
     onSuccess: (p) => {
-      void qc.invalidateQueries({ queryKey: ['admin', 'products'] });
+      void qc.invalidateQueries({ queryKey: [scope.key, 'products'] });
       qc.setQueryData(['admin', 'product', p.id], p);
-      if (isNew) navigate(`/admin/products/${p.id}`, { replace: true });
+      if (isNew) navigate(`${scope.base}/products/${p.id}`, { replace: true });
     },
     onError: (e) => {
       const fields = e instanceof ApiError ? e.details?.fields : undefined;
@@ -102,14 +104,14 @@ export default function ProductEditor() {
   });
   /** Soft delete: hidden from the store and this list, kept in past orders. */
   const remove = useMutation({
-    mutationFn: () => adminApi.deleteProduct(id!),
+    mutationFn: () => scope.api.deleteProduct(id!),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['admin', 'products'] });
-      navigate('/admin/products');
+      void qc.invalidateQueries({ queryKey: [scope.key, 'products'] });
+      navigate(`${scope.base}/products`);
     },
   });
   const upload = useMutation({
-    mutationFn: adminApi.upload,
+    mutationFn: scope.api.upload,
     onSuccess: (r) => {
       setValue('imageUrl', r.url, { shouldDirty: true });
       setUploadError(null);
@@ -123,13 +125,13 @@ export default function ProductEditor() {
 
   return (
     <form onSubmit={handleSubmit((v) => save.mutate(v))} noValidate>
-      <Link to="/admin/products" className="mb-3 inline-flex items-center gap-1 text-sm font-bold text-forest-700"><ArrowLeft className="size-4" /> Products</Link>
+      <Link to={`${scope.base}/products`} className="mb-3 inline-flex items-center gap-1 text-sm font-bold text-forest-700"><ArrowLeft className="size-4" /> Products</Link>
       <PageHeader
         title={isNew ? 'New product' : (product?.name ?? 'Edit product')}
         subtitle={!isNew && product ? <a href={`/product/${product.slug}`} target="_blank" rel="noreferrer" className="underline">View in store</a> : 'Prices are entered in rupees.'}
         actions={
           <>
-            {!isNew && product && (
+            {!isNew && product && scope.can('delete') && (
               <Button variant="outline" className="text-tomato-500" loading={remove.isPending} onClick={() => window.confirm('Delete this product? It disappears from the store but stays in past orders.') && remove.mutate()}>
                 Delete
               </Button>

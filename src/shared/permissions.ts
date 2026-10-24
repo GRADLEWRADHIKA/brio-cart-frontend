@@ -36,6 +36,8 @@ export const PERMISSIONS = [
   'analytics:view',
   'export:run',
   'support:manage',
+  'shop:view',
+  'shop:payout',
   // Super admin only
   'product:create',
   'product:update',
@@ -47,11 +49,15 @@ export const PERMISSIONS = [
   'settings:manage',
   'fee:manage',
   'system:status',
+  'shop:configure',
   // Rider
   'delivery:update',
   'delivery:claim',
   'earnings:view',
   'cash:view_own',
+  // Shop owner
+  'shop:manage',
+  'shop:orders',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -75,6 +81,8 @@ const STAFF: readonly Permission[] = [
   'analytics:view',
   'export:run',
   'support:manage',
+  'shop:view',
+  'shop:payout',
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
@@ -93,7 +101,9 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'settings:manage',
     'fee:manage',
     'system:status',
+    'shop:configure',
   ],
+  SHOP_OWNER: ['shop:manage', 'shop:orders', 'notification:read', 'account:sessions', 'account:export'],
 };
 
 export function hasPermission(role: Role | null | undefined, permission: Permission): boolean {
@@ -106,5 +116,6 @@ export const isStaffRole = (role: Role | null | undefined) => role === 'ADMIN' |
 export function homePathFor(role: Role | null | undefined): string {
   if (role === 'ADMIN' || role === 'SUPERADMIN') return '/admin';
   if (role === 'RIDER') return '/rider';
+  if (role === 'SHOP_OWNER') return '/seller';
   return '/';
 }

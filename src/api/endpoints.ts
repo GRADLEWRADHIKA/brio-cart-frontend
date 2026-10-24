@@ -1,11 +1,13 @@
-import type { CheckoutInput, OrderAddressInput, RiderRegisterInput } from '@shared';
+import type { CheckoutInput, OrderAddressInput, RiderRegisterInput, ShopRegisterInput } from '@shared';
 import { api, request } from './client';
 import { API_BASE } from '@/config/env';
-import type { Address, AppNotification, AvailableOrder, CartValidation, Category, NotificationPage, Order, Product, ProductPage, ReturnRequestRow, RiderCash, RiderEarnings, SlotDay, TicketView, WalletView, RiderProfile, StoreInfo, User } from '@/types';
+import type { Address, AppNotification, AvailableOrder, CartValidation, Category, NotificationPage, Order, Product, ProductPage, PublicShop, ReturnRequestRow, RiderCash, RiderEarnings, SlotDay, TicketView, WalletView, RiderProfile, StoreInfo, User } from '@/types';
 
 export interface ProductFilters {
   category?: string;
   collection?: string;
+  /** Shop slug: only that shop's products. */
+  shop?: string;
   q?: string;
   sort?: 'relevance' | 'price_asc' | 'price_desc' | 'popular' | 'name';
   inStock?: boolean;
@@ -19,6 +21,8 @@ export const catalogApi = {
   products: (f: ProductFilters, signal?: AbortSignal) =>
     api.get<ProductPage>('/products', { ...f, inStock: f.inStock ? 'true' : undefined }, signal),
   product: (slug: string) => api.get<{ product: Product; related: Product[] }>(`/products/${encodeURIComponent(slug)}`),
+  shops: () => api.get<{ items: PublicShop[] }>('/shops').then((r) => r.items),
+  shop: (slug: string) => api.get<{ shop: PublicShop }>(`/shops/${encodeURIComponent(slug)}`).then((r) => r.shop),
   deliverySlots: (days = 3) => api.get<{ days: SlotDay[] }>('/delivery-slots', { days }).then((r) => r.days),
   validateCart: (items: Array<{ variantId: string; quantity: number }>, couponCode?: string) =>
     api.post<CartValidation>('/cart/validate', { items, couponCode: couponCode || undefined }),
@@ -27,7 +31,7 @@ export const catalogApi = {
 export const orderApi = {
   /** One Idempotency-Key per checkout attempt: a retried submit returns the original order. */
   create: (input: CheckoutInput) =>
-    request<{ order: Order; replayed: boolean }>('/orders', { method: 'POST', body: input, headers: { 'Idempotency-Key': input.idempotencyKey } }),
+    request<{ order: Order; orders?: Order[]; replayed: boolean }>('/orders', { method: 'POST', body: input, headers: { 'Idempotency-Key': input.idempotencyKey } }),
   get: (orderNumber: string, key?: string) =>
     api.get<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}`, { key }).then((r) => r.order),
   demoPay: (orderNumber: string, method: 'UPI' | 'CARD' | 'NETBANKING' | 'WALLET', key?: string) =>
@@ -46,6 +50,8 @@ export const authApi = {
   register: (data: { name: string; phone: string; email?: string; password: string }) =>
     api.post<{ user: User; token: string }>('/auth/register', data),
   registerRider: (data: RiderRegisterInput) => api.post<{ user: User; token: string }>('/auth/register-rider', data),
+  /** Shop owners sign up with their shop and can sell straight away. */
+  registerShop: (data: ShopRegisterInput) => api.post<{ user: User; token: string }>('/auth/register-shop', data),
   logout: () => api.post<{ ok: true }>('/auth/logout'),
 };
 
@@ -80,7 +86,8 @@ export const riderApi = {
   claim: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/claim`).then((r) => r.order),
   accept: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/accept`).then((r) => r.order),
   reject: (id: string, reason?: string) => api.post<{ ok: true }>(`/rider/orders/${id}/reject`, { reason }),
-  pickup: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/pickup`).then((r) => r.order),
+  /** Shop orders need the shop's pickup code; Brio Cart's own don't. */
+  pickup: (id: string, code?: string) => api.post<{ order: Order }>(`/rider/orders/${id}/pickup`, code ? { code } : {}).then((r) => r.order),
   start: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/start`).then((r) => r.order),
   fail: (id: string, reason: string) => api.post<{ order: Order }>(`/rider/orders/${id}/fail`, { reason }).then((r) => r.order),
   /** `cashAmount` in rupees for cash on delivery; `cashCollected` for UPI on delivery. */

@@ -18,11 +18,18 @@ export function notificationHref(n: AppNotification, role: Role | undefined): st
     return n.orderId ? `/admin/orders/${n.orderId}` : null;
   }
   if (role === 'RIDER') return '/rider';
+  if (role === 'SHOP_OWNER') {
+    if (n.type === 'LOW_STOCK') return '/seller/stock';
+    if (n.type === 'DAILY_SUMMARY') return '/seller/daily';
+    if (n.type === 'SHOP_PAYOUT') return '/seller/earnings';
+    return n.orderId ? `/seller/orders/${n.orderId}` : '/seller';
+  }
   return n.orderNumber ? `/orders/${n.orderNumber}` : null;
 }
 
 export function notificationsPathFor(role: Role | undefined) {
   if (role === 'ADMIN' || role === 'SUPERADMIN') return '/admin/notifications';
+  if (role === 'SHOP_OWNER') return '/seller/notifications';
   if (role === 'RIDER') return '/rider/notifications';
   return '/notifications';
 }

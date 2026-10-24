@@ -4,13 +4,13 @@ import { formatINR } from '@shared/core';
 import { useCart } from '@/store/cart';
 import { useCartTotals } from '@/hooks/useCartTotals';
 import { useCartValidation } from '@/hooks/useCartValidation';
-import { CartLineItem, FreeDeliveryMeter, TotalsTable } from '@/components/cart/CartBits';
+import { CartLineItem, FreeDeliveryMeter, SellerSplit, TotalsTable } from '@/components/cart/CartBits';
 import { WhatsAppOrderButton } from '@/components/cart/WhatsAppOrderButton';
 import { ButtonLink } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/misc';
 
 export default function CartPage() {
-  const { totals, rules, lines, orderable } = useCartTotals();
+  const { totals, rules, lines, orderable, groups } = useCartTotals();
   const clear = useCart((s) => s.clear);
   const validation = useCartValidation();
   useEffect(() => {
@@ -70,7 +70,7 @@ export default function CartPage() {
                 </span>
               )}
             </div>
-            <FreeDeliveryMeter totals={totals} threshold={rules.freeDeliveryThreshold} className="mt-4" />
+            {groups.length > 1 ? <SellerSplit groups={groups} className="mt-4" /> : <FreeDeliveryMeter totals={totals} threshold={rules.freeDeliveryThreshold} className="mt-4" />}
             <div className="mt-5">
               <TotalsTable totals={totals} />
             </div>

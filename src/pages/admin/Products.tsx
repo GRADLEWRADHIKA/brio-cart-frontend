@@ -3,34 +3,35 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Pencil, Plus, Search, X } from 'lucide-react';
 import { formatINR } from '@shared/core';
-import { adminApi, type AdminProduct } from '@/api/admin';
-import { usePermission } from '@/auth/guards';
+import { type AdminProduct } from '@/api/admin';
 import { PageHeader, Toggle, td, th } from '@/components/admin/kit';
 import { ButtonLink } from '@/components/ui/Button';
 import { ProductImage } from '@/components/ui/misc';
+import { useCatalogScope } from '@/components/admin/CatalogScope';
 import { cn } from '@/utils';
 
 export default function Products() {
+  const scope = useCatalogScope();
   const qc = useQueryClient();
-  const canCreate = usePermission('product:create');
-  const canEdit = usePermission('product:update');
-  const canStock = usePermission('inventory:update');
+  const canCreate = scope.can('create');
+  const canEdit = scope.can('update');
+  const canStock = scope.can('inventory');
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('');
   const [archived, setArchived] = useState<'false' | 'true'>('false');
-  const { data: categories } = useQuery({ queryKey: ['admin', 'categories'], queryFn: adminApi.categories });
+  const { data: categories } = useQuery({ queryKey: [scope.key, 'categories'], queryFn: scope.api.categories });
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'products', q, category, archived],
-    queryFn: () => adminApi.products({ q: q || undefined, category: category || undefined, archived }),
+    queryKey: [scope.key, 'products', q, category, archived],
+    queryFn: () => scope.api.products({ q: q || undefined, category: category || undefined, archived }),
   });
   const toggle = useMutation({
-    mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => adminApi.patchVariant(id, { isAvailable }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'products'] }),
+    mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => scope.api.patchVariant(id, { isAvailable }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [scope.key, 'products'] }),
   });
 
   return (
     <>
-      <PageHeader title="Products" subtitle={data ? `${data.length} products` : undefined} actions={canCreate ? <ButtonLink to="/admin/products/new" icon={<Plus className="size-4" />}>New product</ButtonLink> : undefined} />
+      <PageHeader title="Products" subtitle={data ? `${data.length} products` : undefined} actions={canCreate ? <ButtonLink to={`${scope.base}/products/new`} icon={<Plus className="size-4" />}>New product</ButtonLink> : undefined} />
       <div className="mb-4 flex flex-wrap gap-2">
         <label className="flex h-10 min-w-60 flex-1 items-center gap-2 rounded-full border border-line bg-white px-4">
           <Search className="size-4 text-charcoal-400" />
@@ -61,7 +62,7 @@ export default function Products() {
               <tr key={p.id} className="hover:bg-ivory-50">
                 <td className={td}>
                   {canEdit ? (
-                    <Link to={`/admin/products/${p.id}`} className="flex items-center gap-3">
+                    <Link to={`${scope.base}/products/${p.id}`} className="flex items-center gap-3">
                       <ProductImage src={p.imageUrl} alt="" className="size-12 shrink-0 rounded-xl bg-ivory-100" />
                       <span>
                         <span className="block font-bold text-forest-800 hover:underline">{p.name}</span>
@@ -105,6 +106,7 @@ type AdminVariant = AdminProduct['adminVariants'][number];
 
 /** Price and stock for one pack size, editable inline by staff with inventory access. */
 function VariantPriceStock({ variant: v, name, editable }: { variant: AdminVariant; name: string; editable: boolean }) {
+  const scope = useCatalogScope();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [price, setPrice] = useState('');
@@ -115,11 +117,11 @@ function VariantPriceStock({ variant: v, name, editable }: { variant: AdminVaria
       const rupees = Number(price);
       if (price !== '' && Number.isFinite(rupees) && Math.round(rupees * 100) !== v.price) data.price = rupees;
       if (v.trackInventory && stock !== '' && Number(stock) !== v.stockQty) data.stockQty = Math.max(0, Math.round(Number(stock)));
-      return adminApi.patchVariant(v.id!, data);
+      return scope.api.patchVariant(v.id!, data);
     },
     onSuccess: () => {
       setEditing(false);
-      qc.invalidateQueries({ queryKey: ['admin', 'products'] });
+      qc.invalidateQueries({ queryKey: [scope.key, 'products'] });
     },
   });
 

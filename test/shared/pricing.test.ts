@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeTotals, lineTotal } from '@shared/pricing';
+import { computeSplitTotals, computeTotals, lineTotal } from '@shared/pricing';
 import { formatINR, rupeesToPaise } from '@shared/money';
 
 const rules = { deliveryFee: 3000, freeDeliveryThreshold: 14900, minOrderAmount: 0 };
@@ -80,5 +80,32 @@ describe('coupons', () => {
   });
   it('never discounts more than the subtotal', () => {
     expect(evaluateCoupon({ ...flat, minOrderAmount: 0 }, 3000)).toMatchObject({ ok: true, discount: { amount: 3000 } });
+  });
+});
+
+describe('computeSplitTotals (one order per seller)', () => {
+  const rules = { deliveryFee: 3000, freeDeliveryThreshold: 14900, minOrderAmount: 10000 };
+
+  it('charges each seller its own delivery fee and adds the orders up', () => {
+    const { groups, totals } = computeSplitTotals([[{ unitPrice: 2100, quantity: 2 }], [{ unitPrice: 12000, quantity: 1 }]], rules);
+    expect(groups.map((g) => g.deliveryFee)).toEqual([3000, 3000]);
+    expect(totals).toMatchObject({ subtotal: 16200, deliveryFee: 6000, total: 22200, itemCount: 3, amountToFreeDelivery: 0 });
+  });
+
+  it('applies the minimum to the whole checkout, not each seller', () => {
+    const { groups, totals } = computeSplitTotals([[{ unitPrice: 6000, quantity: 1 }], [{ unitPrice: 5000, quantity: 1 }]], rules);
+    expect(groups.every((g) => !g.meetsMinimum)).toBe(true);
+    expect(totals.meetsMinimum).toBe(true);
+  });
+
+  it('shares a discount in proportion to each seller, to the paisa', () => {
+    const { groups, totals } = computeSplitTotals([[{ unitPrice: 1000, quantity: 1 }], [{ unitPrice: 2000, quantity: 1 }]], rules, { amount: 1001, label: 'Coupon X' });
+    expect(groups.map((g) => g.discount)).toEqual([333, 668]);
+    expect(totals).toMatchObject({ discount: 1001, discountLabel: 'Coupon X' });
+  });
+
+  it('matches computeTotals for a single seller', () => {
+    const lines = [{ unitPrice: 4500, quantity: 2 }];
+    expect(computeSplitTotals([lines], rules).totals).toEqual(computeTotals(lines, rules));
   });
 });

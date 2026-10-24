@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatINR } from '@shared/core';
-import { adminApi } from '@/api/admin';
 import { Card, PageHeader, Stat, td, th } from '@/components/admin/kit';
 import { cn } from '@/utils';
+import { useCatalogScope } from '@/components/admin/CatalogScope';
 import { Bars } from './Analytics';
 
 const DAY_MS = 86_400_000;
@@ -28,11 +28,12 @@ function Change({ now, before, day }: { now: number; before: number; day: string
 }
 
 export default function DailySummary() {
+  const scope = useCatalogScope();
   const today = todayIST();
   const [day, setDay] = useState(today);
   const { data, isLoading, error, isFetching } = useQuery({
-    queryKey: ['admin', 'reports', 'daily', day],
-    queryFn: () => adminApi.dailySummary(day),
+    queryKey: [scope.key, 'reports', 'daily', day],
+    queryFn: () => scope.api.dailySummary(day),
     placeholderData: keepPreviousData,
     refetchInterval: day === today ? 60_000 : false,
   });

@@ -1,4 +1,6 @@
 import type { ExportKind, OrderStatus, RiderStatus, Role, StockReason } from '@shared/core';
+import type { MyShop, ShopEarnings } from './shop';
+import type { ShopPayoutMethod } from '@shared/core';
 import { api, request } from './client';
 import type { Analytics, CashSummary, Order, Product, ReturnRequestRow, RiderCash, TicketView } from '@/types';
 import { API_BASE } from '@/config/env';
@@ -70,6 +72,8 @@ export interface AdminSettings {
   storeLng: number;
   /** Rupees paid to the rider per completed delivery. */
   riderPayoutPerDelivery: number;
+  /** Percent of a shop's item sales Brio Cart keeps, unless the shop has its own rate. */
+  defaultCommissionPercent: number;
   lowStockThreshold: number;
   orderConfirmTimeoutMinutes: number;
   riderAcceptTimeoutMinutes: number;
@@ -190,9 +194,22 @@ export interface ProductPayload {
   variants: Array<Omit<AdminVariant, 'price' | 'mrp'> & { price: number; mrp: number | null }>;
 }
 
+/** A shop as store staff see it, with what Brio Cart owes it. */
+export interface AdminShop extends MyShop {
+  owner: { name: string; phone: string; email?: string | null };
+  productCount?: number;
+  pendingOrders?: number;
+  deliveredOrders?: number;
+  itemsTotal?: number;
+  commission?: number;
+  earned?: number;
+  paid?: number;
+  balance?: number;
+}
+
 export const adminApi = {
   summary: () => api.get<Summary>('/admin/summary'),
-  orders: (q: { status?: string; q?: string; page?: number }) =>
+  orders: (q: { status?: string; q?: string; page?: number; shop?: string }) =>
     api.get<{ items: Order[]; total: number; page: number; totalPages: number }>('/admin/orders', q),
   order: (id: string) => api.get<{ order: Order }>(`/admin/orders/${id}`).then((r) => r.order),
   setStatus: (id: string, status: OrderStatus, note?: string) => api.patch<{ order: Order }>(`/admin/orders/${id}/status`, { status, note }).then((r) => r.order),
@@ -247,6 +264,11 @@ export const adminApi = {
   decideReturn: (id: string, body: { approve: boolean; note?: string; refundMethod?: 'STORE_CREDIT' | 'CASH'; refundAmount?: number }) =>
     api.post<{ request: ReturnRequestRow }>(`/admin/returns/${id}/decision`, body).then((r) => r.request),
   analytics: (range: { from?: string; to?: string }) => api.get<Analytics>('/admin/analytics', range),
+  shops: () => api.get<{ items: AdminShop[] }>('/admin/shops').then((r) => r.items),
+  shop: (id: string) => api.get<{ shop: AdminShop; products: AdminProduct[]; earnings: ShopEarnings }>(`/admin/shops/${id}`),
+  updateShop: (id: string, d: { isActive?: boolean; commissionPercent?: number | null }) => api.patch<{ shop: MyShop }>(`/admin/shops/${id}`, d).then((r) => r.shop),
+  recordShopPayout: (id: string, d: { amount: number; method: ShopPayoutMethod; reference?: string; note?: string }) =>
+    api.post<{ earnings: ShopEarnings }>(`/admin/shops/${id}/payouts`, d).then((r) => r.earnings),
   dailySummary: (date?: string) => api.get<DailySummary>('/admin/reports/daily', { date }),
   exportUrl: (kind: ExportKind, range: { from?: string; to?: string }) =>
     `${API_BASE}/admin/exports/${kind}.csv?${new URLSearchParams(Object.entries(range).filter(([, v]) => v) as Array<[string, string]>).toString()}`,

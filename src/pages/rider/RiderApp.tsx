@@ -190,13 +190,17 @@ function OrderCard({ order, onSheet }: { order: Order; onSheet: (s: { order: Ord
   const [open, setOpen] = useState(order.delivery.status === 'ASSIGNED');
   const onDone = () => refreshRider(qc);
   const accept = useMutation({ mutationFn: () => riderApi.accept(order.id), onSuccess: onDone });
-  const pickup = useMutation({ mutationFn: () => riderApi.pickup(order.id), onSuccess: onDone });
+  const [pickupCode, setPickupCode] = useState('');
+  const pickup = useMutation({ mutationFn: () => riderApi.pickup(order.id, order.shop ? pickupCode : undefined), onSuccess: onDone });
   const start = useMutation({ mutationFn: () => riderApi.start(order.id), onSuccess: onDone });
   const address = [order.customer.house, order.customer.street, order.customer.landmark, order.customer.areaName, 'Lucknow'].filter(Boolean).join(', ');
   const toCollect = order.paymentStatus === 'UNPAID' && order.paymentMethod !== 'ONLINE';
   const step = order.delivery.status;
   const error = accept.error ?? pickup.error ?? start.error;
   const waitingForStore = step === 'ACCEPTED' && order.status === 'PENDING';
+  /** Shop orders: collect from the shop once it has packed the order, with its pickup code. */
+  const shop = order.shop;
+  const waitingForShop = !!shop && step === 'ACCEPTED' && !shop.readyAt;
 
   return (
     <article className={cn('rounded-[1.5rem] bg-white p-4 shadow-soft', step === 'OUT_FOR_DELIVERY' && 'ring-2 ring-lime-300', step === 'ASSIGNED' && 'ring-2 ring-turmeric-400')}>
@@ -213,6 +217,16 @@ function OrderCard({ order, onSheet }: { order: Order; onSheet: (s: { order: Ord
         <MapPin className="mt-0.5 size-4 shrink-0 text-tomato-500" /> {address}
       </p>
       {order.customer.instructions && <p className="mt-2 rounded-xl bg-ivory-100 p-2 text-sm">“{order.customer.instructions}”</p>}
+      {shop && (step === 'ACCEPTED' || step === 'ASSIGNED') && (
+        <div className="mt-2 rounded-2xl bg-mint-50 p-3 text-sm" data-testid="pickup-shop">
+          <p className="font-bold text-forest-800">Collect from {shop.name}</p>
+          <p className="text-charcoal-700">{shop.address}{shop.areaName ? `, ${shop.areaName}` : ''}</p>
+          <div className="mt-2 flex gap-3 text-sm font-bold text-forest-700">
+            <button type="button" onClick={() => openExternal(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${shop.address}, ${shop.areaName ?? ''}, Lucknow`)}&travelmode=two-wheeler`)} className="underline">Directions</button>
+            <a href={`tel:+91${shop.phone}`} className="underline">Call shop</a>
+          </div>
+        </div>
+      )}
       <div className="mt-3 flex items-center justify-between gap-2 rounded-2xl bg-ivory-100 px-3 py-2 text-sm">
         <span className="min-w-0 truncate">{order.deliverySlot ?? 'Today'}</span>
         <span className={cn('shrink-0 font-extrabold', toCollect ? 'text-tomato-500' : 'text-leaf-600')}>
@@ -255,7 +269,28 @@ function OrderCard({ order, onSheet }: { order: Order; onSheet: (s: { order: Ord
             </Button>
           </>
         )}
-        {step === 'ACCEPTED' && (
+        {step === 'ACCEPTED' && shop && (
+          <>
+            {!waitingForShop && (
+              <input
+                value={pickupCode}
+                onChange={(e) => setPickupCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="Shop's pickup code"
+                aria-label="Pickup code from the shop"
+                className="col-span-2 h-12 rounded-2xl border border-line px-4 text-center font-mono text-xl tracking-[0.4em]"
+              />
+            )}
+            <Button className="col-span-2" size="lg" variant="lime" icon={<PackageCheck className="size-5" />} disabled={waitingForShop || pickupCode.length !== 4} loading={pickup.isPending} onClick={() => pickup.mutate()}>
+              {waitingForShop ? `Waiting for ${shop.name} to pack it` : 'Collected from shop'}
+            </Button>
+            <button type="button" onClick={() => onSheet({ order, kind: 'reject' })} className="col-span-2 py-1 text-sm font-bold text-tomato-500">
+              Reject this order
+            </button>
+          </>
+        )}
+        {step === 'ACCEPTED' && !shop && (
           <>
             <Button className="col-span-2" size="lg" variant="lime" icon={<PackageCheck className="size-5" />} disabled={waitingForStore} loading={pickup.isPending} onClick={() => pickup.mutate()}>
               {waitingForStore ? 'Waiting for the store to confirm' : 'Picked up from store'}
@@ -350,6 +385,11 @@ function AvailableOrders({ online }: { online: boolean }) {
               {o.paymentMethod === 'COD' ? ' · Cash' : ''}
             </p>
             {(o.deliverySlot || o.deliveryDate) && <p className="text-xs text-charcoal-400">{[o.deliveryDate, o.deliverySlot].filter(Boolean).join(' · ')}</p>}
+            {o.pickup && (
+              <p className="mt-1 truncate text-xs font-bold text-forest-700">
+                Pick up at {o.pickup.shopName}{o.pickup.areaName ? ` (${o.pickup.areaName})` : ''} · {o.pickup.ready ? 'packed and ready' : 'being packed'}
+              </p>
+            )}
           </div>
           <Button size="sm" disabled={claim.isPending} onClick={() => claim.mutate(o.id)}>
             Take order

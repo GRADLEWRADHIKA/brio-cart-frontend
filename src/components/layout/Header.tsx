@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { Bike, Home, LayoutDashboard, LayoutGrid, Menu, Search, ShoppingBag, User, X } from 'lucide-react';
+import { Bike, Home, LayoutDashboard, LayoutGrid, Menu, Search, ShoppingBag, Store, User, X } from 'lucide-react';
 import { homePathFor, type Role } from '@shared/core';
 import { NotificationBell } from '@/components/notifications/Notifications';
 import { useCart, selectCount } from '@/store/cart';
@@ -36,6 +36,7 @@ function CartButton({ className }: { className?: string }) {
 function accountLink(role: Role | undefined) {
   if (!role) return { to: '/login', label: 'Sign in', icon: User };
   if (role === 'CUSTOMER') return { to: '/account', label: 'My account', icon: User };
+  if (role === 'SHOP_OWNER') return { to: homePathFor(role), label: 'My shop', icon: Store };
   return { to: homePathFor(role), label: role === 'RIDER' ? 'Rider dashboard' : 'Store dashboard', icon: role === 'RIDER' ? Bike : LayoutDashboard };
 }
 
@@ -188,6 +189,7 @@ function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
             { to: '/shop', label: 'All groceries' },
             ...(categories ?? []).map((c) => ({ to: `/shop?category=${c.slug}`, label: c.name })),
             { to: '/shop?collection=essentials', label: 'Daily Essentials' },
+            { to: '/shops', label: 'Local shops' },
             { to: '/track', label: 'Track an order' },
             user ? { to: accountLink(user.role).to, label: accountLink(user.role).label } : { to: '/login', label: 'Sign in / Register' },
             ...(user?.role === 'CUSTOMER' ? [{ to: '/notifications', label: 'Notifications' }] : []),

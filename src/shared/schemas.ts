@@ -112,6 +112,21 @@ export const riderRegisterSchema = registerSchema.extend({
 });
 export type RiderRegisterInput = z.input<typeof riderRegisterSchema>;
 
+/** Shop details a shop owner enters at sign-up and edits later. */
+export const shopProfileSchema = z.object({
+  name: text(2, 80, 'Shop name'),
+  phone: indianMobile,
+  address: text(5, 200, 'Shop address'),
+  areaId: z.string().min(1, 'Choose the area your shop is in').max(40),
+  description: z.string().trim().max(500, 'Description must be at most 500 characters').optional().or(z.literal('').transform(() => undefined)),
+  prepMinutes: z.coerce.number().int().min(5, 'At least 5 minutes').max(240, 'At most 4 hours').default(30),
+});
+export type ShopProfileInput = z.input<typeof shopProfileSchema>;
+
+/** Shop owners sign up with their own account details plus the shop's. They can sell straight away. */
+export const shopRegisterSchema = registerSchema.extend({ shop: shopProfileSchema });
+export type ShopRegisterInput = z.input<typeof shopRegisterSchema>;
+
 /** Delivery address fields a customer may correct before pickup. */
 export const orderAddressSchema = z.object({
   house: addressFields.house,

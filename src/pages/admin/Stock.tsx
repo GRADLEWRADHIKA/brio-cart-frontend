@@ -1,26 +1,27 @@
 import { useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { hasPermission, STOCK_ADJUST_REASONS, STOCK_REASON_LABELS, type StockReason } from '@shared/core';
-import { adminApi, type LowStockItem } from '@/api/admin';
-import { useAuth } from '@/hooks/useAuth';
+import { STOCK_ADJUST_REASONS, STOCK_REASON_LABELS, type StockReason } from '@shared/core';
+import { type LowStockItem } from '@/api/admin';
 import { Card, PageHeader, td, th } from '@/components/admin/kit';
 import { Button } from '@/components/ui/Button';
+import { useCatalogScope } from '@/components/admin/CatalogScope';
 import { formatDate } from '@/utils';
 
 /** Add or remove stock with a reason. Exported for tests. */
 export function StockAdjustForm({ item, onDone }: { item: Pick<LowStockItem, 'variantId' | 'stockQty'>; onDone?: () => void }) {
+  const scope = useCatalogScope();
   const qc = useQueryClient();
   const [qty, setQty] = useState('');
   const [direction, setDirection] = useState<'add' | 'remove'>('add');
   const [reason, setReason] = useState<StockReason>('RESTOCK');
   const [note, setNote] = useState('');
   const m = useMutation({
-    mutationFn: () => adminApi.adjustStock(item.variantId, { delta: (direction === 'add' ? 1 : -1) * Number(qty), reason, note: note.trim() || undefined }),
+    mutationFn: () => scope.api.adjustStock(item.variantId, { delta: (direction === 'add' ? 1 : -1) * Number(qty), reason, note: note.trim() || undefined }),
     onSuccess: () => {
       setQty('');
       setNote('');
-      void qc.invalidateQueries({ queryKey: ['admin', 'stock'] });
+      void qc.invalidateQueries({ queryKey: [scope.key, 'stock'] });
       onDone?.();
     },
   });
@@ -51,10 +52,11 @@ export function StockAdjustForm({ item, onDone }: { item: Pick<LowStockItem, 'va
 }
 
 function History({ productId }: { productId: string }) {
+  const scope = useCatalogScope();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'stock', 'history', productId, page],
-    queryFn: () => adminApi.stockMovements(productId, page),
+    queryKey: [scope.key, 'stock', 'history', productId, page],
+    queryFn: () => scope.api.stockMovements(productId, page),
     placeholderData: keepPreviousData,
   });
   if (isLoading) return <div className="skeleton h-20 rounded-2xl" />;
@@ -93,11 +95,11 @@ function History({ productId }: { productId: string }) {
 
 /** Low-stock list with stock adjustments and per-product movement history. */
 export default function Stock() {
-  const { user } = useAuth();
-  const canAdjust = hasPermission(user?.role, 'stock:adjust');
+  const scope = useCatalogScope();
+  const canAdjust = scope.can('stockAdjust');
   const [threshold, setThreshold] = useState<number | undefined>();
   const [open, setOpen] = useState<string | null>(null);
-  const { data, isLoading } = useQuery({ queryKey: ['admin', 'stock', 'low', threshold], queryFn: () => adminApi.lowStock(threshold), refetchInterval: 60_000 });
+  const { data, isLoading } = useQuery({ queryKey: [scope.key, 'stock', 'low', threshold], queryFn: () => scope.api.lowStock(threshold), refetchInterval: 60_000 });
   return (
     <>
       <PageHeader
@@ -116,7 +118,7 @@ export default function Stock() {
           <Card key={i.variantId}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
-                <Link to={`/admin/products/${i.product.id}`} className="font-bold text-forest-900 hover:underline">{i.product.name}</Link>
+                <Link to={`${scope.base}/products/${i.product.id}`} className="font-bold text-forest-900 hover:underline">{i.product.name}</Link>
                 <span className="text-charcoal-500"> · {i.label}</span>
                 <p className={`text-sm font-extrabold ${i.stockQty === 0 ? 'text-tomato-500' : 'text-kumkum-700'}`}>{i.stockQty === 0 ? 'Out of stock' : `${i.stockQty} left`}</p>
               </div>

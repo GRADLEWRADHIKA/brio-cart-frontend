@@ -41,7 +41,9 @@ export const ProductCard = memo(function ProductCard({ product, eager, className
         </div>
         <div className="pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1">
           {off > 0 && <span className="rounded-full bg-tomato-500 px-2 py-0.5 text-[0.68rem] font-extrabold text-white shadow-sm">{off}% OFF</span>}
-          {!product.inStock && <span className="rounded-full bg-charcoal-900/85 px-2 py-0.5 text-[0.68rem] font-bold text-white">Out of stock</span>}
+          {!product.inStock && (
+            <span className="rounded-full bg-charcoal-900/85 px-2 py-0.5 text-[0.68rem] font-bold text-white">{product.shop && !product.shop.isOpen ? 'Shop closed' : 'Out of stock'}</span>
+          )}
           {variant.lowStock !== null && product.inStock && (
             <span className="rounded-full bg-turmeric-400 px-2 py-0.5 text-[0.68rem] font-extrabold text-forest-900">Only {variant.lowStock} left</span>
           )}
@@ -59,6 +61,11 @@ export const ProductCard = memo(function ProductCard({ product, eager, className
             {product.name}
           </Link>
         </h3>
+        {product.shop && (
+          <Link to={`/shops/${product.shop.slug}`} className="truncate text-xs text-charcoal-500 hover:text-forest-700" data-testid="sold-by">
+            Sold by <span className="font-bold">{product.shop.name}</span>
+          </Link>
+        )}
         {product.highlight && <p className={cn('mt-1 truncate text-[0.72rem] font-semibold', tint.text)}>{product.highlight}</p>}
 
         <div className="mt-2.5 min-h-8">

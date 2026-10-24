@@ -9,6 +9,7 @@ export const milk: Product = {
   highlight: 'Full Cream',
   imageUrl: '/uploads/products/amul-gold-full-cream-milk.webp',
   category: { id: 'c-dairy', slug: 'dairy-milk', name: 'Dairy & Milk' },
+  shop: null,
   collections: ['essentials'],
   inStock: true,
   fromPrice: 3600,

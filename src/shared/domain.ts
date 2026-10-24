@@ -53,7 +53,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 export const PAYMENT_STATUSES = ['UNPAID', 'PAID', 'REFUNDED', 'DEMO_PAID'] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
-export const ROLES = ['CUSTOMER', 'ADMIN', 'RIDER', 'SUPERADMIN'] as const;
+export const ROLES = ['CUSTOMER', 'ADMIN', 'RIDER', 'SUPERADMIN', 'SHOP_OWNER'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -61,6 +61,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   ADMIN: 'Admin',
   RIDER: 'Rider',
   SUPERADMIN: 'Super admin',
+  SHOP_OWNER: 'Shop owner',
 };
 
 /** Riders who sign up themselves start PENDING and get no orders until a super admin approves them. */
@@ -133,6 +134,9 @@ export const NOTIFICATION_TYPES = [
   'LOW_STOCK',
   'CAMPAIGN_ENDING',
   'DAILY_SUMMARY',
+  'ORDER_READY',
+  'SHOP_PAYOUT',
+  'SHOP_JOINED',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -216,3 +220,11 @@ export type TicketStatus = (typeof TICKET_STATUSES)[number];
 export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = { OPEN: 'Open', IN_PROGRESS: 'In progress', CLOSED: 'Closed' };
 export const EXPORT_KINDS = ['orders', 'products', 'stock-movements', 'rider-earnings', 'settlements'] as const;
 export type ExportKind = (typeof EXPORT_KINDS)[number];
+
+/** Shop orders: wrong pickup codes before the shop must issue a new one. */
+export const PICKUP_CODE_MAX_ATTEMPTS = 5;
+
+/** How Brio Cart paid a shop (recorded only; the money moves outside the app). */
+export const SHOP_PAYOUT_METHODS = ['CASH', 'BANK', 'UPI'] as const;
+export type ShopPayoutMethod = (typeof SHOP_PAYOUT_METHODS)[number];
+export const SHOP_PAYOUT_METHOD_LABELS: Record<ShopPayoutMethod, string> = { CASH: 'Cash', BANK: 'Bank transfer', UPI: 'UPI' };

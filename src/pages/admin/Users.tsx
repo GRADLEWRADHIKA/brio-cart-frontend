@@ -10,10 +10,14 @@ import { SelectField, TextField } from '@/components/forms/Field';
 import { Button } from '@/components/ui/Button';
 import { cn, formatDate } from '@/utils';
 
+/** Shop owners only come from sign-up, with their shop; staff can't create or convert one. */
+const ASSIGNABLE_ROLES = ROLES.filter((r) => r !== 'SHOP_OWNER');
+
 const ROLE_TONE: Record<Role, string> = {
   SUPERADMIN: 'bg-forest-800 text-lime-300',
   ADMIN: 'bg-mint-100 text-forest-800',
   RIDER: 'bg-turmeric-100 text-[#6b4500]',
+  SHOP_OWNER: 'bg-tomato-100 text-tomato-500',
   CUSTOMER: 'bg-ivory-200 text-charcoal-700',
 };
 
@@ -31,7 +35,7 @@ function NewUser({ onDone }: { onDone: () => void }) {
         <TextField label="Mobile number" prefix="+91" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} error={fields?.phone} />
         <TextField label="Email" optional value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} error={fields?.email} />
         <SelectField label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
-          {ROLES.map((r) => (
+          {ASSIGNABLE_ROLES.map((r) => (
             <option key={r} value={r}>
               {ROLE_LABELS[r]}
             </option>
@@ -83,13 +87,13 @@ function UserRow({ u, self }: { u: AdminUser; self: boolean }) {
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <select
           value={u.role}
-          disabled={self || update.isPending}
+          disabled={self || update.isPending || u.role === 'SHOP_OWNER'}
           onChange={(e) => window.confirm(`Change ${u.name}'s role to ${ROLE_LABELS[e.target.value as Role]}? They will be signed out.`) && update.mutate({ role: e.target.value as Role })}
           className="h-9 rounded-full border border-line bg-white px-3 text-sm font-bold disabled:opacity-50"
           aria-label={`Role for ${u.name}`}
         >
           {ROLES.map((r) => (
-            <option key={r} value={r}>
+            <option key={r} value={r} disabled={r === 'SHOP_OWNER' && u.role !== 'SHOP_OWNER'}>
               {ROLE_LABELS[r]}
             </option>
           ))}

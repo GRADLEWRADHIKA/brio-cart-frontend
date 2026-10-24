@@ -19,6 +19,8 @@ export interface Product {
   highlight: string | null;
   imageUrl: string | null;
   category: { id: string; slug: string; name: string };
+  /** The local shop selling it; null for Brio Cart's own products. `isOpen` false = can't be ordered now. */
+  shop: { id: string; slug: string; name: string; isOpen: boolean } | null;
   collections: string[];
   inStock: boolean;
   fromPrice: number | null;
@@ -36,6 +38,8 @@ export interface AvailableOrder {
   total: number;
   itemCount: number;
   createdAt: string;
+  /** Where to collect a shop order; null for Brio Cart's own. */
+  pickup: { shopName: string; address: string; areaName: string | null; ready: boolean } | null;
 }
 
 export interface ProductPage {
@@ -126,9 +130,12 @@ export interface CartValidation {
     quantity: number;
     lineTotal: number;
     maxQty: number;
+    shop: { id: string; name: string } | null;
   }>;
   issues: Array<{ variantId: string; code: 'NOT_FOUND' | 'UNAVAILABLE' | 'QUANTITY_LIMIT'; message: string; maxQty?: number }>;
   totals: OrderTotals;
+  /** One entry per order the checkout will create (Brio Cart's items, then each shop's). */
+  groups?: Array<{ shop: { id: string; name: string } | null; variantIds: string[]; totals: OrderTotals }>;
   coupon: { code: string; discount: number } | null;
   couponError: string | null;
   minOrderAmount: number;
@@ -180,6 +187,10 @@ export interface Order {
   paymentMethodLabel: string;
   paymentStatus: string;
   couponCode: string | null;
+  /** The shop selling and preparing this order; null for Brio Cart's own. */
+  shop: { id: string; slug: string; name: string; phone: string; address: string; areaName: string | null; readyAt: string | null } | null;
+  /** Orders split from one checkout share this. */
+  checkoutGroup?: string | null;
   rider: { id: string; name: string; phone: string; vehicleNumber: string | null } | null;
   /** Only present for the customer, while the order is out for delivery. */
   deliveryOtp?: string;
@@ -342,4 +353,18 @@ export interface Analytics {
   topProducts: Array<{ productId: string | null; name: string; quantity: number; sales: number }>;
   cancellationReasons: Array<{ reason: string; count: number }>;
   riders: Array<{ riderId: string; name: string; attempted: number; delivered: number; payout: number; avgRating: number | null }>;
+}
+
+/** A local shop selling on Brio Cart, as customers see it. */
+export interface PublicShop {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  address: string;
+  area: { id: string; name: string } | null;
+  isOpen: boolean;
+  prepMinutes: number;
+  productCount?: number;
 }

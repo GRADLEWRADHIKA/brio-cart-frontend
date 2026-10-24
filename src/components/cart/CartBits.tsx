@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Trash2, Truck } from 'lucide-react';
+import { AlertTriangle, Store, Trash2, Truck } from 'lucide-react';
 import { formatINR, type OrderTotals } from '@shared/core';
 import { useCart, type CartLine } from '@/store/cart';
 import { ProductImage, QuantityStepper } from '@/components/ui/misc';
@@ -36,6 +36,7 @@ export function CartLineItem({ line, compact, onNavigate }: { line: CartLine; co
             <Link to={`/product/${line.slug}`} onClick={onNavigate} className="line-clamp-2 font-bold leading-snug hover:text-forest-700">
               {line.name}
             </Link>
+            {line.shop && <p className="truncate text-[0.72rem] text-charcoal-500">from {line.shop.name}</p>}
             {options.length > 1 ? (
               <label className="mt-1 inline-flex items-center gap-1 text-xs text-charcoal-500">
                 <span className="sr-only">Pack size</span>
@@ -73,6 +74,32 @@ export function CartLineItem({ line, compact, onNavigate }: { line: CartLine; co
         )}
       </div>
     </li>
+  );
+}
+
+/**
+ * A cart with items from several sellers (Brio Cart and local shops) is placed as one order per
+ * seller. Each is packed by that seller and has its own delivery fee.
+ */
+export function SellerSplit({ groups, className }: { groups: Array<{ shop: { name: string } | null; totals: OrderTotals }>; className?: string }) {
+  if (groups.length < 2) return null;
+  return (
+    <div className={cn('rounded-2xl bg-ivory-100 p-3.5 text-sm', className)} data-testid="seller-split">
+      <p className="flex items-center gap-2 font-bold text-forest-800">
+        <Store className="size-4 text-leaf-600" /> Arrives as {groups.length} orders
+      </p>
+      <p className="mt-1 text-xs text-charcoal-500">Your items come from {groups.length} sellers. Each packs its own order, with its own delivery fee.</p>
+      <ul className="mt-2 space-y-1">
+        {groups.map((g, i) => (
+          <li key={g.shop?.name ?? `brio-${i}`} className="flex justify-between gap-3">
+            <span className="truncate">{g.shop?.name ?? 'Brio Cart'}</span>
+            <span className="shrink-0 tabular-nums text-charcoal-700">
+              {formatINR(g.totals.subtotal)} + {g.totals.deliveryFee ? formatINR(g.totals.deliveryFee) : 'free'} delivery
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

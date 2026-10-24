@@ -54,6 +54,8 @@ export function Footer() {
           <h2 className="eyebrow text-lime-300">Help</h2>
           <ul className="mt-4 space-y-2.5 text-ivory-50/80">
             <li><Link to="/track" className="hover:text-white">Track your order</Link></li>
+            <li><Link to="/shops" className="hover:text-white">Local shops</Link></li>
+            <li><Link to="/seller/register" className="hover:text-white">Sell on Brio Cart</Link></li>
             <li><Link to="/account" className="hover:text-white">My account</Link></li>
             <li><Link to="/help" className="hover:text-white">Help & contact</Link></li>
             <li><Link to="/privacy" className="hover:text-white">Privacy policy</Link></li>

@@ -67,6 +67,8 @@ const EVENT_LABELS: Record<string, string> = {
   DELIVERY_FAILED: 'Delivery failed',
   ADDRESS_CHANGED: 'Address changed',
   OTP_RESET: 'New delivery code',
+  READY_FOR_PICKUP: 'Ready for pickup',
+  PICKUP_CODE_RESET: 'New pickup code',
 };
 
 /** Label for an order timeline event (store statuses and rider steps). */

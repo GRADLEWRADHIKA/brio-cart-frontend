@@ -95,6 +95,15 @@ export default function ProductPage() {
               {product.nameHi}
             </p>
           )}
+          {product.shop && (
+            <p className="mt-2 text-sm text-charcoal-500">
+              Sold by{' '}
+              <Link to={`/shops/${product.shop.slug}`} className="font-bold text-forest-700 underline underline-offset-2">
+                {product.shop.name}
+              </Link>
+              , a local shop on Brio Cart
+            </p>
+          )}
           {product.highlight && <p className={cn('mt-3 inline-flex rounded-full bg-white px-3 py-1 text-sm font-bold ring-1', tint.text, tint.ring)}>{product.highlight}</p>}
 
           <div className="mt-6">
@@ -136,6 +145,8 @@ export default function ProductPage() {
                   {remaining < 1 ? 'Maximum in cart' : `Add to cart · ${formatINR(variant.price * Math.min(qty, Math.max(remaining, 1)))}`}
                 </Button>
               </>
+            ) : product.shop && !product.shop.isOpen ? (
+              <p className="rounded-2xl bg-turmeric-100 px-4 py-3 text-sm font-semibold text-[#6b4500]">{product.shop.name} is closed right now. You can order once it opens again.</p>
             ) : (
               <Button size="lg" variant="whatsapp" icon={<WhatsAppIcon className="size-5" />} onClick={() => openExternal(buildWhatsAppUrl(whatsapp, `Hello Brio Cart, please let me know when ${product.name} (${variant.label}) is back in stock.`))}>
                 Ask when it’s back

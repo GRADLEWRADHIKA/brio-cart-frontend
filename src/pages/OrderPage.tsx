@@ -43,7 +43,8 @@ export default function OrderPage() {
   const { orderNumber = '' } = useParams();
   const [params] = useSearchParams();
   const location = useLocation();
-  const justPlaced = (location.state as { justPlaced?: boolean } | null)?.justPlaced;
+  const placed = location.state as { justPlaced?: boolean; siblings?: Array<{ orderNumber: string; accessKey: string | null; sellerName: string; total: number }> } | null;
+  const justPlaced = placed?.justPlaced;
   const deviceKey = useGuestOrders((s) => s.keyFor(orderNumber));
   const key = params.get('key') ?? deviceKey;
   const { whatsapp, phoneDisplay } = useContact();
@@ -119,6 +120,9 @@ export default function OrderPage() {
       ),
     );
 
+  /** Other orders from the same checkout (one per seller), shown right after placing. */
+  const siblings = placed?.siblings?.filter((o) => o.orderNumber !== order.orderNumber) ?? [];
+
   return (
     <div className="container-page max-w-5xl py-8 sm:py-12">
       <section className="grain relative overflow-hidden rounded-[2rem] bg-forest-900 p-6 text-ivory-50 sm:p-10">
@@ -132,12 +136,15 @@ export default function OrderPage() {
                 </span>
                 <h1 className="mt-5 font-display text-4xl font-medium sm:text-5xl">Order placed, thank you!</h1>
                 <p className="mt-2 max-w-lg text-ivory-50/70">
-                  Your order has been received by Brio Cart. We’ll confirm it shortly and deliver {order.deliverySlot ? `tomorrow, ${order.deliverySlot.replace(/^Morning,\s*/, '')}` : 'soon'}.
+                  {order.shop
+                    ? `Your order has been sent to ${order.shop.name}. They’ll confirm it shortly and a Brio Cart rider will deliver it`
+                    : 'Your order has been received by Brio Cart. We’ll confirm it shortly and deliver'}{' '}
+                  {order.deliverySlot ? `tomorrow, ${order.deliverySlot.replace(/^Morning,\s*/, '')}` : 'soon'}.
                 </p>
               </>
             ) : (
               <>
-                <p className="eyebrow text-lime-300">Order details</p>
+                <p className="eyebrow text-lime-300">{order.shop ? `Order from ${order.shop.name}` : 'Order details'}</p>
                 <h1 className="mt-2 font-display text-4xl font-medium sm:text-5xl">Order {order.orderNumber}</h1>
                 <p className="mt-2 text-ivory-50/70">Placed {formatDate(order.createdAt)}</p>
               </>
@@ -166,6 +173,25 @@ export default function OrderPage() {
           </div>
         </div>
       </section>
+
+      {siblings.length > 0 && (
+        <section className="mt-6 rounded-[1.75rem] border border-line bg-white p-5" aria-label="Other orders from this checkout" data-testid="sibling-orders">
+          <h2 className="font-sans text-base font-extrabold text-forest-900">Your checkout became {siblings.length + 1} orders</h2>
+          <p className="mt-1 text-sm text-charcoal-500">Items from different sellers are packed and delivered as separate orders. This page shows the {order.shop?.name ?? 'Brio Cart'} order.</p>
+          <ul className="mt-3 divide-y divide-line text-sm">
+            {siblings.map((o) => (
+              <li key={o.orderNumber} className="flex items-center justify-between gap-3 py-2">
+                <span>
+                  <span className="font-bold">{o.sellerName}</span> · <span className="font-mono">{o.orderNumber}</span>
+                </span>
+                <Link to={`/orders/${o.orderNumber}${o.accessKey ? `?key=${encodeURIComponent(o.accessKey)}` : ''}`} className="font-bold text-forest-700 underline underline-offset-2">
+                  View order
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-6">

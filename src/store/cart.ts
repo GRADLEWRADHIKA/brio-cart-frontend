@@ -15,6 +15,8 @@ export interface CartLine {
   imageUrl: string | null;
   quantity: number;
   maxQty: number;
+  /** The shop selling it; null/absent for Brio Cart's own. Items from each seller become a separate order. */
+  shop?: { id: string; name: string } | null;
   /** Set when the server reports the item can no longer be bought as-is. */
   issue?: { code: string; message: string } | null;
   /** Other pack sizes, so the customer can switch variant from the cart. */
@@ -48,6 +50,7 @@ function lineFrom(product: Product, variant: Variant, quantity: number): CartLin
     imageUrl: product.imageUrl,
     quantity,
     maxQty: variant.maxQty,
+    shop: product.shop ? { id: product.shop.id, name: product.shop.name } : null,
     issue: null,
     options: product.variants.map((v) => ({ id: v.id, label: v.label, price: v.price, mrp: v.mrp, inStock: v.inStock, maxQty: v.maxQty })),
   };
@@ -132,7 +135,7 @@ export const useCart = create<CartState>()(
             const fresh = byId.get(l.variantId);
             if (fresh) {
               if (fresh.unitPrice !== l.unitPrice) priceChanged = true;
-              return { ...l, unitPrice: fresh.unitPrice, mrp: fresh.mrp, maxQty: fresh.maxQty, name: fresh.productName, issue: null };
+              return { ...l, unitPrice: fresh.unitPrice, mrp: fresh.mrp, maxQty: fresh.maxQty, name: fresh.productName, shop: fresh.shop ?? null, issue: null };
             }
             const issue = issues.get(l.variantId);
             if (issue?.code === 'QUANTITY_LIMIT' && issue.maxQty) {

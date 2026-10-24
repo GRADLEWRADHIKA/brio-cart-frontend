@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { Activity, Banknote, BarChart3, Bell, CalendarDays, LifeBuoy, Bike, Boxes, Clock, Undo2, ExternalLink, LayoutDashboard, LogOut, Map as MapIcon, MapPin, Menu, Package, ScrollText, Settings, ShoppingCart, Tag, Tags, UserCheck, Users as UsersIcon, X } from 'lucide-react';
+import { Activity, Banknote, BarChart3, Bell, CalendarDays, LifeBuoy, Bike, Boxes, Clock, Undo2, ExternalLink, LayoutDashboard, LogOut, Map as MapIcon, MapPin, Menu, Package, ScrollText, Settings, ShoppingCart, Store, Tag, Tags, UserCheck, Users as UsersIcon, X } from 'lucide-react';
 import { hasPermission, ROLE_LABELS, type Permission } from '@shared/core';
 import { useAuth } from '@/hooks/useAuth';
 import { Logo } from '@/components/ui/Brand';
@@ -31,6 +31,7 @@ const DeliverySlots = lazy(() => import('./DeliverySlots'));
 const Returns = lazy(() => import('./Returns'));
 const Analytics = lazy(() => import('./Analytics'));
 const DailySummary = lazy(() => import('./DailySummary'));
+const Shops = lazy(() => import('./Shops'));
 const Tickets = lazy(() => import('./Tickets'));
 const SystemStatus = lazy(() => import('./SystemStatus'));
 
@@ -47,6 +48,7 @@ const NAV: Array<{ to: string; label: string; icon: typeof Bell; end?: boolean; 
   { to: '/admin/settlements', label: 'Rider cash', icon: Banknote, permission: 'settlement:manage' },
   { to: '/admin/rider-approvals', label: 'Rider approvals', icon: UserCheck, permission: 'rider:approve' },
   { to: '/admin/coupons', label: 'Coupons', icon: Tag, permission: 'coupon:manage' },
+  { to: '/admin/shops', label: 'Shops', icon: Store, permission: 'shop:view' },
   { to: '/admin/products', label: 'Products', icon: Package, permission: 'catalog:view' },
   { to: '/admin/stock', label: 'Stock', icon: Boxes, permission: 'stock:view' },
   { to: '/admin/categories', label: 'Categories', icon: Tags, permission: 'category:manage' },
@@ -140,6 +142,8 @@ function Shell() {
                 <Route path="system" element={guard('system:status', <SystemStatus />)} />
                 <Route path="analytics" element={guard('analytics:view', <Analytics />)} />
                 <Route path="daily" element={guard('analytics:view', <DailySummary />)} />
+                <Route path="shops" element={guard('shop:view', <Shops />)} />
+                <Route path="shops/:id" element={guard('shop:view', <Shops />)} />
                 <Route path="tickets" element={guard('support:manage', <Tickets />)} />
                 <Route path="returns" element={guard('return:manage', <Returns />)} />
                 <Route path="slots" element={guard('slot:manage', <DeliverySlots />)} />

@@ -47,6 +47,17 @@ export default function OrderDetail() {
       <div className="grid gap-6 xl:grid-cols-[1fr_22rem]">
         <div className="space-y-6">
           {(o.status === 'OUT_FOR_DELIVERY' || o.status === 'PREPARING' || o.status === 'CONFIRMED') && <LiveTracking order={o} />}
+          {o.shop ? (
+            <Card title={`Run by ${o.shop.name}`}>
+              <p className="text-sm text-charcoal-700">
+                This order belongs to a shop. Only the shop can accept, reject, prepare it and hand it to a rider; you can follow it here.
+              </p>
+              <p className="mt-2 text-sm">
+                <Link to={`/admin/shops/${o.shop.id}`} className="font-bold text-forest-700 underline">{o.shop.name}</Link> · {o.shop.address} · +91 {o.shop.phone}
+              </p>
+              {o.shop.readyAt && <p className="mt-1 text-sm font-semibold text-leaf-700">Packed and ready since {formatDate(o.shop.readyAt)}</p>}
+            </Card>
+          ) : (
           <Card title="Update status">
             {next.length === 0 ? (
               <p className="text-sm text-charcoal-500">This order is {ORDER_STATUS_LABELS[o.status].toLowerCase()} — no further changes.</p>
@@ -70,6 +81,7 @@ export default function OrderDetail() {
             )}
             {status.error && <p className="mt-2 text-sm font-semibold text-tomato-500">{(status.error as Error).message}</p>}
           </Card>
+          )}
 
           <Card title={`Items (${o.items.length})`}>
             <ul className="divide-y divide-line">
@@ -126,7 +138,7 @@ export default function OrderDetail() {
                 <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {o.delivery.failReason ?? 'Delivery failed'}. Reassign a rider or cancel the order.
               </p>
             )}
-            {o.delivery.status === 'FAILED' && o.status !== 'CANCELLED' && hasPermission(user?.role, 'stock:adjust') && (
+            {o.delivery.status === 'FAILED' && o.status !== 'CANCELLED' && !o.shop && hasPermission(user?.role, 'stock:adjust') && (
               <div className="mb-3">
                 <Button size="sm" variant="outline" className="w-full" loading={returnToStock.isPending} onClick={() => returnToStock.mutate()}>
                   Rider returned it: cancel and restock
@@ -134,7 +146,7 @@ export default function OrderDetail() {
                 {returnToStock.error && <p className="mt-1 text-xs font-semibold text-tomato-500">{(returnToStock.error as Error).message}</p>}
               </div>
             )}
-            {o.status === 'OUT_FOR_DELIVERY' && o.delivery.status !== 'FAILED' && (
+            {o.status === 'OUT_FOR_DELIVERY' && o.delivery.status !== 'FAILED' && !o.shop && (
               <div className="mb-3 rounded-xl bg-ivory-100 p-2 text-xs text-charcoal-700">
                 {o.delivery.otpLocked ? 'Rider is locked out after wrong codes.' : o.delivery.otpExpiresAt ? `Delivery code valid until ${formatDate(o.delivery.otpExpiresAt)}.` : 'No delivery code issued yet.'}
                 <Button size="sm" variant="outline" className="mt-2 w-full" icon={<KeyRound className="size-4" />} loading={resetOtp.isPending} onClick={() => resetOtp.mutate()}>
@@ -143,8 +155,8 @@ export default function OrderDetail() {
                 {resetOtp.error && <p className="mt-1 font-semibold text-tomato-500">{(resetOtp.error as Error).message}</p>}
               </div>
             )}
-            {['DELIVERED', 'CANCELLED'].includes(o.status) || (o.delivery.status && ['PICKED_UP', 'OUT_FOR_DELIVERY'].includes(o.delivery.status)) ? (
-              <p className="flex items-center gap-2 text-sm"><Bike className="size-4" /> {o.rider?.name ?? 'No rider recorded'}</p>
+            {o.shop || ['DELIVERED', 'CANCELLED'].includes(o.status) || (o.delivery.status && ['PICKED_UP', 'OUT_FOR_DELIVERY'].includes(o.delivery.status)) ? (
+              <p className="flex items-center gap-2 text-sm"><Bike className="size-4" /> {o.rider?.name ?? (o.shop ? 'No rider yet: riders take shop orders from their available list' : 'No rider recorded')}</p>
             ) : (
               <>
                 <select
@@ -184,6 +196,8 @@ export default function OrderDetail() {
             <p className="font-bold">{o.paymentMethodLabel}</p>
             {o.paymentStatus === 'DEMO_PAID' ? (
               <p className="mt-1 rounded-xl bg-turmeric-100 p-2 text-xs font-bold text-[#6b4500]">Demo payment — no money was received. Collect payment before delivery for real orders.</p>
+            ) : o.shop ? (
+              <p className="text-sm text-charcoal-500">Status: {o.paymentStatus}</p>
             ) : (
               <>
                 <p className="text-sm text-charcoal-500">Status: {o.paymentStatus}</p>

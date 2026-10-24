@@ -24,6 +24,9 @@ const AdminApp = lazy(() => import('@/pages/admin/AdminApp'));
 const RiderApp = lazy(() => import('@/pages/rider/RiderApp'));
 const RiderRegisterPage = lazy(() => import('@/pages/rider/RiderRegisterPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
+const SellerApp = lazy(() => import('@/pages/seller/SellerApp'));
+const SellerRegisterPage = lazy(() => import('@/pages/seller/SellerRegisterPage'));
+const ShopStorePage = lazy(() => import('@/pages/ShopStorePage'));
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +43,8 @@ const customerRoutes: RouteObject[] = [
   { index: true, element: <HomePage /> },
   { path: 'shop', element: <ShopPage /> },
   { path: 'product/:slug', element: <ProductPage /> },
+  { path: 'shops', element: <ShopStorePage /> },
+  { path: 'shops/:slug', element: <ShopStorePage /> },
   { path: 'cart', element: <CartPage /> },
   // Customer-only pages: guests may check out; staff and riders are sent to their own home.
   { path: 'checkout', element: <RequireRole roles={['CUSTOMER']} allowGuest><CheckoutPage /></RequireRole> },
@@ -78,6 +83,25 @@ const routes: RouteObject[] = [
         <RequireRole roles={['RIDER']}>
           <RiderApp />
         </RequireRole>
+      </Suspense>
+    ),
+  },
+  // Shop owner portal. Sign-up is public and needs no approval; the rest is shop owners only.
+  {
+    path: '/seller/register',
+    element: (
+      <Suspense fallback={<PageFallback />}>
+        <GuestOnly>
+          <SellerRegisterPage />
+        </GuestOnly>
+      </Suspense>
+    ),
+  },
+  {
+    path: '/seller/*',
+    element: (
+      <Suspense fallback={<PageFallback />}>
+        <SellerApp />
       </Suspense>
     ),
   },

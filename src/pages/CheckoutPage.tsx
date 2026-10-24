@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { AlertCircle, Banknote, CreditCard, Lock, MapPin, QrCode, ShoppingBasket, Sunrise, Tag, X } from 'lucide-react';
-import { addressFields, computeTotals, formatINR, hasPermission, type PaymentMethod } from '@shared';
+import { addressFields, computeSplitTotals, formatINR, hasPermission, type PaymentMethod } from '@shared';
 import { accountApi, catalogApi, orderApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
 import { useCart } from '@/store/cart';
@@ -17,7 +17,7 @@ import { useCartValidation } from '@/hooks/useCartValidation';
 import { SlotPicker } from '@/components/checkout/SlotPicker';
 import { useStoreInfo } from '@/hooks/useStoreInfo';
 import { Checkbox, SelectField, TextAreaField, TextField } from '@/components/forms/Field';
-import { TotalsTable } from '@/components/cart/CartBits';
+import { SellerSplit, TotalsTable } from '@/components/cart/CartBits';
 import { WhatsAppOrderButton } from '@/components/cart/WhatsAppOrderButton';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { EmptyState, ProductImage } from '@/components/ui/misc';
@@ -60,7 +60,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: store } = useStoreInfo();
-  const { totals, orderable, lines, rules } = useCartTotals();
+  const { totals, orderable, lines, rules, groups } = useCartTotals();
   const validation = useCartValidation();
   const clearCart = useCart((s) => s.clear);
   const applyValidation = useCart((s) => s.applyValidation);
@@ -153,13 +153,16 @@ export default function CheckoutPage() {
   });
   const couponOk = couponCode && couponCheck.data?.coupon ? couponCheck.data.coupon : null;
   const couponError = couponCode ? couponCheck.data?.couponError ?? null : null;
-  const shownTotals = useMemo(
-    () =>
-      couponOk
-        ? computeTotals(orderable.map((l) => ({ unitPrice: l.unitPrice, quantity: l.quantity })), rules, { amount: couponOk.discount, label: `Coupon ${couponOk.code}` })
-        : totals,
-    [couponOk, orderable, rules, totals],
-  );
+  const shown = useMemo(() => {
+    if (!couponOk) return { totals, groups };
+    const split = computeSplitTotals(
+      groups.map((g) => g.lines.map((l) => ({ unitPrice: l.unitPrice, quantity: l.quantity }))),
+      rules,
+      { amount: couponOk.discount, label: `Coupon ${couponOk.code}` },
+    );
+    return { totals: split.totals, groups: groups.map((g, i) => ({ ...g, totals: split.groups[i]! })) };
+  }, [couponOk, groups, rules, totals]);
+  const shownTotals = shown.totals;
 
   if (lines.length === 0) {
     return (
@@ -202,7 +205,7 @@ export default function CheckoutPage() {
     const idempotencyKey = idempotencyKeyFor(JSON.stringify(payload));
     setSubmitting(true);
     try {
-      const { order } = await orderApi.create({ ...payload, idempotencyKey });
+      const { order, orders = [order] } = await orderApi.create({ ...payload, idempotencyKey });
       // Only now — after the backend acknowledged the order — do we treat it as placed.
       try {
         sessionStorage.removeItem(IDEM_KEY);
@@ -211,11 +214,15 @@ export default function CheckoutPage() {
       }
       prefs.setArea(v.areaId);
       prefs.setSavedDetails(v.rememberDetails ? { name: v.name, phone: v.phone, house: v.house, street: v.street, landmark: v.landmark } : null);
-      if (order.accessKey) rememberGuestOrder({ orderNumber: order.orderNumber, accessKey: order.accessKey, total: order.total, createdAt: order.createdAt });
+      // A cart with items from several sellers comes back as one order per seller.
+      for (const o of orders) {
+        if (o.accessKey) rememberGuestOrder({ orderNumber: o.orderNumber, accessKey: o.accessKey, total: o.total, createdAt: o.createdAt });
+      }
       clearCart();
       const keyQs = order.accessKey ? `?key=${encodeURIComponent(order.accessKey)}` : '';
+      const siblings = orders.map((o) => ({ orderNumber: o.orderNumber, accessKey: o.accessKey ?? null, sellerName: o.shop?.name ?? 'Brio Cart', total: o.total }));
       if (order.paymentMethod === 'ONLINE') navigate(`/pay/${order.orderNumber}${keyQs}`, { replace: true });
-      else navigate(`/orders/${order.orderNumber}${keyQs}`, { replace: true, state: { justPlaced: true } });
+      else navigate(`/orders/${order.orderNumber}${keyQs}`, { replace: true, state: { justPlaced: true, siblings: siblings.length > 1 ? siblings : undefined } });
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.code === 'CART_CHANGED' && e.details?.issues) {
@@ -417,6 +424,7 @@ export default function CheckoutPage() {
                 )}
                 {couponError && <p className="mt-1.5 text-xs font-semibold text-tomato-500" role="alert">{couponError}</p>}
               </div>
+              <SellerSplit groups={shown.groups} className="mb-4" />
               <TotalsTable totals={shownTotals} />
               <p className="mt-2 text-xs text-charcoal-500">Final prices are confirmed by our server when you place the order.</p>
             </div>

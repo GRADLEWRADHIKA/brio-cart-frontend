@@ -59,7 +59,7 @@ describe('cart store', () => {
     add(combo, combo.variants[0]!, 1);
     const { priceChanged } = applyValidation({
       lines: [
-        { variantId: 'v-500', productId: 'p-milk', productSlug: milk.slug, productName: milk.name, variantLabel: '500 ml', imageUrl: null, unitPrice: 3800, mrp: null, quantity: 1, lineTotal: 3800, maxQty: 10 },
+        { variantId: 'v-500', productId: 'p-milk', productSlug: milk.slug, productName: milk.name, variantLabel: '500 ml', imageUrl: null, unitPrice: 3800, mrp: null, quantity: 1, lineTotal: 3800, maxQty: 10, shop: null },
       ],
       issues: [{ variantId: 'v-combo', code: 'UNAVAILABLE', message: 'Navratri Combo is currently out of stock' }],
     });
