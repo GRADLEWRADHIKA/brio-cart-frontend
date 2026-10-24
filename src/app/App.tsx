@@ -27,6 +27,7 @@ const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 const SellerApp = lazy(() => import('@/pages/seller/SellerApp'));
 const SellerRegisterPage = lazy(() => import('@/pages/seller/SellerRegisterPage'));
 const ShopStorePage = lazy(() => import('@/pages/ShopStorePage'));
+const SetupPage = lazy(() => import('@/pages/SetupPage'));
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -83,6 +84,15 @@ const routes: RouteObject[] = [
         <RequireRole roles={['RIDER']}>
           <RiderApp />
         </RequireRole>
+      </Suspense>
+    ),
+  },
+  // First-run setup: creates the first super admin, then switches itself off.
+  {
+    path: '/setup',
+    element: (
+      <Suspense fallback={<PageFallback />}>
+        <SetupPage />
       </Suspense>
     ),
   },
