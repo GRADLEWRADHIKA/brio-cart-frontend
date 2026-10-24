@@ -52,7 +52,7 @@ export default function SetupPage() {
           <p className="mt-2 text-charcoal-500">This store already has a super admin. Sign in, and add staff from Admin → Users.</p>
           <Link to="/login?next=/admin" className="mt-4 inline-block font-bold text-forest-700 underline">Sign in</Link>
         </div>
-        <ResetSuperAdmin codeSet={status.data.codeSet} />
+        <ResetSuperAdmin codeSet={status.data.codeSet} openReset={!!status.data.openReset} />
       </>,
     );
   }
@@ -94,13 +94,13 @@ export default function SetupPage() {
 }
 
 /** Forgotten super admin login: reset it with the server's SETUP_CODE. */
-function ResetSuperAdmin({ codeSet }: { codeSet: boolean }) {
+function ResetSuperAdmin({ codeSet, openReset }: { codeSet: boolean; openReset: boolean }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [f, setF] = useState({ code: '', identifier: '', password: '', confirm: '', newEmail: '' });
   const [mismatch, setMismatch] = useState(false);
   const reset = useMutation({
-    mutationFn: () => authApi.resetSuperAdmin({ code: f.code, identifier: f.identifier, password: f.password, newEmail: f.newEmail || undefined }),
+    mutationFn: () => authApi.resetSuperAdmin({ code: f.code || undefined, identifier: f.identifier, password: f.password, newEmail: f.newEmail || undefined }),
     onSuccess: async ({ user, token }) => {
       await tokenStore.set(token);
       qc.setQueryData(['me'], user);
@@ -112,7 +112,7 @@ function ResetSuperAdmin({ codeSet }: { codeSet: boolean }) {
   return (
     <section className="mt-6 rounded-[1.75rem] bg-white p-6 shadow-soft" aria-label="Reset the super admin">
       <h2 className="font-display text-2xl font-semibold text-forest-900">Forgot the super admin login?</h2>
-      {!codeSet ? (
+      {!codeSet && !openReset ? (
         <p className="mt-2 text-sm text-charcoal-500">
           Add <code className="rounded bg-ivory-100 px-1">SETUP_CODE=your-own-long-code</code> to the API’s <code className="rounded bg-ivory-100 px-1">.env</code> on the server, restart the API, then reload this page to reset it here.
         </p>
@@ -126,7 +126,11 @@ function ResetSuperAdmin({ codeSet }: { codeSet: boolean }) {
             if (f.password === f.confirm) reset.mutate();
           }}
         >
-          <TextField label="Setup code" hint="The SETUP_CODE from the server’s .env." value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} autoComplete="off" />
+          {codeSet ? (
+            <TextField label="Setup code" hint="The SETUP_CODE from the server’s .env." value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} autoComplete="off" />
+          ) : (
+            <p className="rounded-2xl bg-turmeric-100 p-3 text-sm font-semibold text-[#6b4500]">Temporary: this reset works once without a setup code, and switches off on 25 Oct 2026.</p>
+          )}
           <TextField label="Super admin’s mobile number or email" value={f.identifier} onChange={(e) => setF({ ...f, identifier: e.target.value })} />
           <TextField label="New password" type="password" autoComplete="new-password" hint="At least 12 characters." value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} error={fields?.password} />
           <TextField label="Confirm new password" type="password" autoComplete="new-password" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} error={mismatch ? 'Passwords do not match' : undefined} />
