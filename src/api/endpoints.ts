@@ -53,7 +53,9 @@ export const authApi = {
   /** Shop owners sign up with their shop and can sell straight away. */
   registerShop: (data: ShopRegisterInput) => api.post<{ user: User; token: string }>('/auth/register-shop', data),
   /** First-run setup: is a super admin still needed, and is the page switched on (SETUP_CODE set)? */
-  setupStatus: () => api.get<{ needed: boolean; enabled: boolean }>('/auth/setup'),
+  setupStatus: () => api.get<{ needed: boolean; enabled: boolean; codeSet: boolean }>('/auth/setup'),
+  /** Forgotten super admin login: new password (and optionally email), with the server's SETUP_CODE. */
+  resetSuperAdmin: (data: { code: string; identifier: string; password: string; newEmail?: string }) => api.post<{ user: User; token: string }>('/auth/setup/reset', data),
   setup: (data: { name: string; phone: string; email?: string; password: string; code: string }) => api.post<{ user: User; token: string }>('/auth/setup', data),
   logout: () => api.post<{ ok: true }>('/auth/logout'),
 };

@@ -46,11 +46,14 @@ export default function SetupPage() {
   if (status.isLoading) return shell(<div className="skeleton h-60 rounded-3xl" />);
   if (status.data && !status.data.needed) {
     return shell(
-      <div className="rounded-[1.75rem] bg-white p-6 shadow-soft">
-        <h1 className="font-display text-3xl font-semibold text-forest-900">Already set up</h1>
-        <p className="mt-2 text-charcoal-500">This store already has a super admin. Sign in, and add staff from Admin → Users.</p>
-        <Link to="/login?next=/admin" className="mt-4 inline-block font-bold text-forest-700 underline">Sign in</Link>
-      </div>,
+      <>
+        <div className="rounded-[1.75rem] bg-white p-6 shadow-soft">
+          <h1 className="font-display text-3xl font-semibold text-forest-900">Already set up</h1>
+          <p className="mt-2 text-charcoal-500">This store already has a super admin. Sign in, and add staff from Admin → Users.</p>
+          <Link to="/login?next=/admin" className="mt-4 inline-block font-bold text-forest-700 underline">Sign in</Link>
+        </div>
+        <ResetSuperAdmin codeSet={status.data.codeSet} />
+      </>,
     );
   }
   if (status.data && !status.data.enabled) {
@@ -87,5 +90,51 @@ export default function SetupPage() {
         <Button type="submit" size="lg" block icon={<ShieldCheck className="size-5" />} loading={setup.isPending}>Create super admin</Button>
       </form>
     </>,
+  );
+}
+
+/** Forgotten super admin login: reset it with the server's SETUP_CODE. */
+function ResetSuperAdmin({ codeSet }: { codeSet: boolean }) {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const [f, setF] = useState({ code: '', identifier: '', password: '', confirm: '', newEmail: '' });
+  const [mismatch, setMismatch] = useState(false);
+  const reset = useMutation({
+    mutationFn: () => authApi.resetSuperAdmin({ code: f.code, identifier: f.identifier, password: f.password, newEmail: f.newEmail || undefined }),
+    onSuccess: async ({ user, token }) => {
+      await tokenStore.set(token);
+      qc.setQueryData(['me'], user);
+      navigate('/admin', { replace: true });
+    },
+  });
+  const fields = (reset.error as { details?: { fields?: Record<string, string> } } | null)?.details?.fields;
+
+  return (
+    <section className="mt-6 rounded-[1.75rem] bg-white p-6 shadow-soft" aria-label="Reset the super admin">
+      <h2 className="font-display text-2xl font-semibold text-forest-900">Forgot the super admin login?</h2>
+      {!codeSet ? (
+        <p className="mt-2 text-sm text-charcoal-500">
+          Add <code className="rounded bg-ivory-100 px-1">SETUP_CODE=your-own-long-code</code> to the API’s <code className="rounded bg-ivory-100 px-1">.env</code> on the server, restart the API, then reload this page to reset it here.
+        </p>
+      ) : (
+        <form
+          noValidate
+          className="mt-4 space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setMismatch(f.password !== f.confirm);
+            if (f.password === f.confirm) reset.mutate();
+          }}
+        >
+          <TextField label="Setup code" hint="The SETUP_CODE from the server’s .env." value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} autoComplete="off" />
+          <TextField label="Super admin’s mobile number or email" value={f.identifier} onChange={(e) => setF({ ...f, identifier: e.target.value })} />
+          <TextField label="New password" type="password" autoComplete="new-password" hint="At least 12 characters." value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} error={fields?.password} />
+          <TextField label="Confirm new password" type="password" autoComplete="new-password" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} error={mismatch ? 'Passwords do not match' : undefined} />
+          <TextField label="New email" type="email" optional hint="Leave empty to keep the current email." value={f.newEmail} onChange={(e) => setF({ ...f, newEmail: e.target.value })} error={fields?.newEmail} />
+          {reset.error && !fields && <p role="alert" className="rounded-2xl bg-tomato-100 p-3 text-sm font-semibold text-tomato-500">{(reset.error as Error).message}</p>}
+          <Button type="submit" size="lg" block loading={reset.isPending}>Reset and sign in</Button>
+        </form>
+      )}
+    </section>
   );
 }
