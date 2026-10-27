@@ -129,7 +129,7 @@ function ResetSuperAdmin({ codeSet, openReset }: { codeSet: boolean; openReset: 
           {codeSet ? (
             <TextField label="Setup code" hint="The SETUP_CODE from the server’s .env." value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} autoComplete="off" />
           ) : (
-            <p className="rounded-2xl bg-turmeric-100 p-3 text-sm font-semibold text-[#6b4500]">Temporary: this reset works once without a setup code, and switches off on 25 Oct 2026.</p>
+            <p className="rounded-2xl bg-turmeric-100 p-3 text-sm font-semibold text-[#6b4500]">Temporary: this reset works once without a setup code, and switches off on 28 Oct 2026, 1:00 PM.</p>
           )}
           <TextField label={codeSet ? "Super admin’s mobile number or email" : "Mobile number to sign in with"} hint={codeSet ? undefined : "Your current super admin number, or a new one: it becomes the super admin login."} value={f.identifier} onChange={(e) => setF({ ...f, identifier: e.target.value })} />
           <TextField label="New password" type="password" autoComplete="new-password" hint="At least 12 characters." value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} error={fields?.password} />
