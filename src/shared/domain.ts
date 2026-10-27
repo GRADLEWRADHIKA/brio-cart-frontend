@@ -234,7 +234,7 @@ export const SHOP_PAYOUT_METHOD_LABELS: Record<ShopPayoutMethod, string> = { CAS
 
 // ---------- Verification documents (shop owners and riders) ----------
 
-export const DOCUMENT_KINDS = ['ID_PROOF', 'BANK_PROOF', 'SHOP_LICENSE', 'FSSAI', 'GSTIN', 'DRIVING_LICENSE', 'VEHICLE_RC'] as const;
+export const DOCUMENT_KINDS = ['ID_PROOF', 'BANK_PROOF', 'SHOP_LICENSE', 'FSSAI', 'GSTIN', 'TRADEMARK', 'DRIVING_LICENSE', 'VEHICLE_RC'] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 
 export const DOCUMENT_LABELS: Record<DocumentKind, { name: string; hint: string; reference?: string }> = {
@@ -243,6 +243,7 @@ export const DOCUMENT_LABELS: Record<DocumentKind, { name: string; hint: string;
   SHOP_LICENSE: { name: 'Shop licence / local registration', hint: 'Shop and establishment licence, trade licence or municipal registration', reference: 'Registration number' },
   FSSAI: { name: 'FSSAI registration / licence', hint: 'Needed if you sell food items', reference: 'FSSAI number (14 digits)' },
   GSTIN: { name: 'GST registration', hint: 'GST certificate, if your shop is registered', reference: 'GSTIN (15 characters)' },
+  TRADEMARK: { name: 'Trademark registration', hint: 'If your products sell under a registered brand or trademark: the registration certificate', reference: 'Trademark / application number' },
   DRIVING_LICENSE: { name: 'Driving licence', hint: 'Valid for the vehicle you ride', reference: 'Licence number' },
   VEHICLE_RC: { name: 'Vehicle documents', hint: 'Registration certificate (RC); insurance if you have it', reference: 'Vehicle number' },
 };
@@ -252,7 +253,7 @@ export const REQUIRED_DOCUMENTS = {
   SHOP_OWNER: ['ID_PROOF', 'BANK_PROOF', 'SHOP_LICENSE'],
   RIDER: ['ID_PROOF', 'DRIVING_LICENSE', 'VEHICLE_RC', 'BANK_PROOF'],
 } as const satisfies Record<'SHOP_OWNER' | 'RIDER', readonly DocumentKind[]>;
-export const OPTIONAL_DOCUMENTS = { SHOP_OWNER: ['FSSAI', 'GSTIN'], RIDER: [] } as const satisfies Record<'SHOP_OWNER' | 'RIDER', readonly DocumentKind[]>;
+export const OPTIONAL_DOCUMENTS = { SHOP_OWNER: ['FSSAI', 'GSTIN', 'TRADEMARK'], RIDER: [] } as const satisfies Record<'SHOP_OWNER' | 'RIDER', readonly DocumentKind[]>;
 
 export const DOCUMENT_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'] as const;
 export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
