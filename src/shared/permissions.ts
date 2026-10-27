@@ -50,6 +50,8 @@ export const PERMISSIONS = [
   'fee:manage',
   'system:status',
   'shop:configure',
+  'kyc:review',
+  'shipping:manage',
   // Rider
   'delivery:update',
   'delivery:claim',
@@ -102,6 +104,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'fee:manage',
     'system:status',
     'shop:configure',
+    'kyc:review',
+    'shipping:manage',
   ],
   SHOP_OWNER: ['shop:manage', 'shop:orders', 'notification:read', 'account:sessions', 'account:export'],
 };

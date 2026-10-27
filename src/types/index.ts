@@ -191,6 +191,19 @@ export interface Order {
   shop: { id: string; slug: string; name: string; phone: string; address: string; areaName: string | null; readyAt: string | null } | null;
   /** Orders split from one checkout share this. */
   checkoutGroup?: string | null;
+  /** Courier delivery outside the city; null for local orders. */
+  shipping?: {
+    state: string | null;
+    stateName: string | null;
+    city: string | null;
+    pincode: string | null;
+    /** AWAITING_QUOTE | QUOTED | SHIPPED | DELIVERED */
+    status: string | null;
+    eta: string | null;
+    courierName: string | null;
+    trackingNumber: string | null;
+    note: string | null;
+  } | null;
   rider: { id: string; name: string; phone: string; vehicleNumber: string | null } | null;
   /** Only present for the customer, while the order is out for delivery. */
   deliveryOtp?: string;

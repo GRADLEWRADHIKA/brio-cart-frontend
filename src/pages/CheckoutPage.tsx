@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { AlertCircle, Banknote, CreditCard, Lock, MapPin, QrCode, ShoppingBasket, Sunrise, Tag, X } from 'lucide-react';
-import { addressFields, computeSplitTotals, formatINR, hasPermission, type PaymentMethod } from '@shared';
+import { addressFields, computeSplitTotals, formatINR, hasPermission, INDIAN_STATES, type PaymentMethod } from '@shared';
 import { accountApi, catalogApi, orderApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
 import { useCart } from '@/store/cart';
@@ -108,6 +108,20 @@ export default function CheckoutPage() {
   const slotDays = useQuery({ queryKey: ['delivery-slots'], queryFn: () => catalogApi.deliverySlots(3), refetchInterval: 60_000 });
   const bookable = !!slotDays.data?.some((d) => d.slots.length > 0);
   const [booking, setBooking] = useState<{ slotId: string; date: string } | null>(null);
+  /** Delivery outside the city by courier: only shops that ship to the state; shipping is set later. */
+  const [courier, setCourier] = useState(false);
+  const [ship, setShip] = useState({ state: '', city: '', pincode: '' });
+  const shipOk = !!ship.state && ship.city.trim().length >= 2 && /^[1-9]\d{5}$/.test(ship.pincode.trim());
+  const courierCheck = useQuery({
+    queryKey: ['courier-check', ship.state, orderable.map((l) => `${l.variantId}:${l.quantity}`).join('|')],
+    queryFn: () => catalogApi.validateCart(orderable.map((l) => ({ variantId: l.variantId, quantity: l.quantity })), undefined, ship.state),
+    enabled: courier && !!ship.state && orderable.length > 0,
+  });
+  const courierIssues = courier ? (courierCheck.data?.issues ?? []) : [];
+  const chooseCourier = (on: boolean) => {
+    setCourier(on);
+    setValue('areaId', on ? 'courier' : (prefs.areaId ?? ''), { shouldValidate: false });
+  };
   const wallet = useQuery({ queryKey: ['account', 'wallet'], queryFn: accountApi.wallet, enabled: hasPermission(user?.role, 'wallet:view_own') });
   const credit = wallet.data?.balance ?? 0;
   const [useCredit, setUseCredit] = useState(false);
@@ -162,7 +176,8 @@ export default function CheckoutPage() {
     );
     return { totals: split.totals, groups: groups.map((g, i) => ({ ...g, totals: split.groups[i]! })) };
   }, [couponOk, groups, rules, totals]);
-  const shownTotals = shown.totals;
+  // A courier order has no delivery fee yet: Brio Cart sets the shipping cost after the shop confirms.
+  const shownTotals = courier && courierCheck.data ? courierCheck.data.totals : shown.totals;
 
   if (lines.length === 0) {
     return (
@@ -187,10 +202,11 @@ export default function CheckoutPage() {
       return;
     }
     const payload = {
-      customer: { name: v.name, phone: v.phone, areaId: v.areaId, house: v.house, street: v.street, landmark: v.landmark, instructions: v.instructions || undefined },
-      deliverySlot: bookable ? undefined : v.deliverySlot || undefined,
-      deliverySlotId: bookable ? booking?.slotId : undefined,
-      deliveryDate: bookable ? booking?.date : undefined,
+      customer: { name: v.name, phone: v.phone, areaId: courier ? 'courier' : v.areaId, house: v.house, street: v.street, landmark: v.landmark, instructions: v.instructions || undefined },
+      deliverySlot: courier || bookable ? undefined : v.deliverySlot || undefined,
+      deliverySlotId: !courier && bookable ? booking?.slotId : undefined,
+      deliveryDate: !courier && bookable ? booking?.date : undefined,
+      shipTo: courier ? { state: ship.state, city: ship.city.trim(), pincode: ship.pincode.trim() } : undefined,
       paymentMethod: v.paymentMethod,
       items,
       couponCode: couponOk?.code,
@@ -198,7 +214,11 @@ export default function CheckoutPage() {
       saveAddress: user ? !!v.saveAddress : undefined,
       useWalletCredit: credit > 0 && useCredit ? true : undefined,
     };
-    if (bookable && !booking) {
+    if (courier && (!shipOk || courierIssues.length)) {
+      setServerError(shipOk ? 'Some items can’t be shipped to that state. Remove them from your cart first.' : 'Enter the state, city and PIN code for courier delivery.');
+      return;
+    }
+    if (!courier && bookable && !booking) {
       setServerError('Please choose a delivery slot.');
       return;
     }
@@ -287,15 +307,57 @@ export default function CheckoutPage() {
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <TextField label="Full name" autoComplete="name" {...register('name')} error={errors.name?.message} />
               <TextField label="Mobile number" type="tel" inputMode="numeric" autoComplete="tel-national" prefix="+91" maxLength={14} {...register('phone')} error={errors.phone?.message} hint="We’ll call this number if we need to reach you." />
-              <SelectField label="Delivery area" {...register('areaId')} error={errors.areaId?.message} className="sm:col-span-2" hint={areaName ? `Lucknow — we deliver to ${areaName}.` : 'We currently deliver only to these Lucknow localities.'}>
-                <option value="">Choose your locality</option>
-                {store?.areas.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                    {a.pincode ? ` (${a.pincode})` : ''}
-                  </option>
+              <div className="flex gap-2 sm:col-span-2" role="radiogroup" aria-label="Where to deliver">
+                {[
+                  { on: false, label: 'In Lucknow' },
+                  { on: true, label: 'Elsewhere in India (courier)' },
+                ].map((o) => (
+                  <button key={o.label} type="button" role="radio" aria-checked={courier === o.on} onClick={() => chooseCourier(o.on)} className={cn('flex-1 rounded-2xl border-2 px-3 py-2.5 text-sm font-bold', courier === o.on ? 'border-forest-700 bg-mint-50' : 'border-line')}>
+                    {o.label}
+                  </button>
                 ))}
-              </SelectField>
+              </div>
+              {courier ? (
+                <>
+                  <p className="rounded-2xl bg-ivory-100 p-3 text-sm text-charcoal-700 sm:col-span-2">
+                    Only products from shops that ship to your state can go by courier. After the shop confirms, we’ll tell you the shipping cost and delivery date; you pay it with the order on delivery.
+                  </p>
+                  <label className="text-sm font-bold">
+                    State
+                    <select value={ship.state} onChange={(e) => setShip({ ...ship, state: e.target.value })} className="mt-1 h-12 w-full rounded-2xl border border-line bg-white px-3 font-normal" aria-label="State">
+                      <option value="">Choose your state</option>
+                      {INDIAN_STATES.map(([code, name]) => (
+                        <option key={code} value={code}>{name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm font-bold">
+                    City
+                    <input value={ship.city} onChange={(e) => setShip({ ...ship, city: e.target.value })} maxLength={60} className="mt-1 h-12 w-full rounded-2xl border border-line px-3 font-normal" aria-label="City" />
+                  </label>
+                  <label className="text-sm font-bold">
+                    PIN code
+                    <input value={ship.pincode} onChange={(e) => setShip({ ...ship, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })} inputMode="numeric" className="mt-1 h-12 w-full rounded-2xl border border-line px-3 font-normal" aria-label="PIN code" />
+                  </label>
+                  {courierIssues.length > 0 && (
+                    <ul className="space-y-1 rounded-2xl bg-tomato-100 p-3 text-sm font-semibold text-tomato-500 sm:col-span-2" role="alert">
+                      {courierIssues.map((i) => (
+                        <li key={i.variantId}>{i.message}</li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <SelectField label="Delivery area" {...register('areaId')} error={errors.areaId?.message} className="sm:col-span-2" hint={areaName ? `Lucknow — we deliver to ${areaName}.` : 'We currently deliver only to these Lucknow localities.'}>
+                  <option value="">Choose your locality</option>
+                  {store?.areas.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                      {a.pincode ? ` (${a.pincode})` : ''}
+                    </option>
+                  ))}
+                </SelectField>
+              )}
               <TextField label="House / flat / building" autoComplete="address-line1" placeholder="e.g. B-12, Shanti Apartments" {...register('house')} error={errors.house?.message} />
               <TextField label="Street / area details" autoComplete="address-line2" placeholder="e.g. Sector C, near park" {...register('street')} error={errors.street?.message} />
               <TextField label="Landmark" optional placeholder="e.g. Opposite Kapoorthala market" {...register('landmark')} error={errors.landmark?.message} />
@@ -313,7 +375,7 @@ export default function CheckoutPage() {
             </div>
           </section>
 
-          {bookable && slotDays.data && (
+          {!courier && bookable && slotDays.data && (
             <section className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby="slot-h">
               <h2 id="slot-h" className="flex items-center gap-2 font-display text-2xl font-semibold text-forest-900">
                 <Sunrise className="size-5 text-marigold-500" /> Delivery slot
@@ -322,7 +384,7 @@ export default function CheckoutPage() {
               <SlotPicker days={slotDays.data} value={booking} onChange={setBooking} />
             </section>
           )}
-          {!bookable && slots.length > 0 && (
+          {!courier && !bookable && slots.length > 0 && (
             <section className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby="slot-h">
               <h2 id="slot-h" className="flex items-center gap-2 font-display text-2xl font-semibold text-forest-900">
                 <Sunrise className="size-5 text-marigold-500" /> Delivery slot
@@ -425,7 +487,8 @@ export default function CheckoutPage() {
                 {couponError && <p className="mt-1.5 text-xs font-semibold text-tomato-500" role="alert">{couponError}</p>}
               </div>
               <SellerSplit groups={shown.groups} className="mb-4" />
-              <TotalsTable totals={shownTotals} />
+              <TotalsTable totals={shownTotals} deliveryLabel={courier ? 'Set after the shop confirms' : undefined} />
+              {courier && <p className="mt-2 text-xs text-charcoal-500" data-testid="shipping-later">Shipping cost: we’ll tell you after the shop confirms. It’s added to the total and paid on delivery.</p>}
               <p className="mt-2 text-xs text-charcoal-500">Final prices are confirmed by our server when you place the order.</p>
             </div>
 
@@ -443,14 +506,14 @@ export default function CheckoutPage() {
             <div className="mt-5 rounded-2xl bg-ivory-100 p-4">
               <Checkbox
                 label={`I confirm my order of ${formatINR(shownTotals.total)}`}
-                description={`To be delivered${areaName ? ` in ${areaName}` : ''}${slotText ? `, ${slotText}` : ''}. Payment: ${PAYMENT_CARDS.find((p) => p.id === paymentMethod)?.title ?? ''}.`}
+                description={`${courier ? `By courier to ${ship.city || 'your city'}${ship.state ? `, ${INDIAN_STATES.find(([c]) => c === ship.state)?.[1] ?? ''}` : ''}; delivery date and shipping cost follow after the shop confirms` : `To be delivered${areaName ? ` in ${areaName}` : ''}${slotText ? `, ${slotText}` : ''}`}. Payment: ${PAYMENT_CARDS.find((p) => p.id === paymentMethod)?.title ?? ''}.`}
                 {...register('confirmed')}
                 aria-invalid={!!errors.confirmed || undefined}
               />
               {errors.confirmed && <p className="mt-2 text-sm font-semibold text-tomato-500">{errors.confirmed.message}</p>}
             </div>
 
-            <Button type="submit" size="lg" block className="mt-5" loading={submitting} disabled={belowMin || !!closed || validation.loading || orderable.length === 0}>
+            <Button type="submit" size="lg" block className="mt-5" loading={submitting} disabled={(!courier && belowMin) || !!closed || validation.loading || orderable.length === 0 || (courier && (!shipOk || courierIssues.length > 0 || courierCheck.isFetching))}>
               {submitting ? 'Placing order…' : paymentMethod === 'ONLINE' ? `Continue to payment · ${formatINR(shownTotals.total)}` : `Place order · ${formatINR(shownTotals.total)}`}
             </Button>
             <p className="mt-3 text-center text-xs text-charcoal-500">

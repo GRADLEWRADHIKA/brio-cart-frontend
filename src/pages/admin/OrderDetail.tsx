@@ -47,6 +47,11 @@ export default function OrderDetail() {
       <div className="grid gap-6 xl:grid-cols-[1fr_22rem]">
         <div className="space-y-6">
           {(o.status === 'OUT_FOR_DELIVERY' || o.status === 'PREPARING' || o.status === 'CONFIRMED') && <LiveTracking order={o} />}
+          {o.shipping && (
+            <Card title="Courier delivery">
+              <p className="text-sm">To {o.shipping.city}, {o.shipping.stateName} {o.shipping.pincode}. The super admin sets shipping and books the courier on the <Link to="/admin/shipping" className="font-bold text-forest-700 underline">Courier orders</Link> page.</p>
+            </Card>
+          )}
           {o.shop ? (
             <Card title={`Run by ${o.shop.name}`}>
               <p className="text-sm text-charcoal-700">

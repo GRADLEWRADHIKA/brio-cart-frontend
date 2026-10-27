@@ -1,5 +1,7 @@
 import { z } from 'zod';
-import { PAYMENT_METHODS } from './domain';
+import { INDIAN_STATES, PAYMENT_METHODS, SERVICE_SCOPES } from './domain';
+
+const stateCode = z.enum(INDIAN_STATES.map((s) => s[0]) as [string, ...string[]], 'Choose a state');
 
 /** Indian mobile: 10 digits starting 6–9. Accepts +91 / 0 prefixes and spaces. */
 export const indianMobile = z
@@ -61,6 +63,17 @@ export const checkoutSchema = z.object({
   saveAddress: z.boolean().optional(),
   /** Signed-in customers: pay part or all of the order from store credit. */
   useWalletCredit: z.boolean().optional(),
+  /**
+   * Delivery outside the city, by courier: only shop products whose shop ships to this state. The
+   * customer's areaId is then ignored (send "courier"); shipping cost and date are set after the shop confirms.
+   */
+  shipTo: z
+    .object({
+      state: stateCode,
+      city: text(2, 60, 'City'),
+      pincode: z.string().trim().regex(/^[1-9]\d{5}$/, 'Enter a valid 6-digit PIN code'),
+    })
+    .optional(),
 });
 export type CheckoutInput = z.input<typeof checkoutSchema>;
 
@@ -135,3 +148,12 @@ export const orderAddressSchema = z.object({
   instructions: optionalText(300),
 });
 export type OrderAddressInput = z.input<typeof orderAddressSchema>;
+
+/** Where a shop sells: its city only, chosen states, or all of India. */
+export const shopSellingSchema = z
+  .object({
+    serviceScope: z.enum(SERVICE_SCOPES),
+    serviceStates: z.array(stateCode).max(40).default([]),
+  })
+  .refine((v) => v.serviceScope !== 'STATES' || v.serviceStates.length > 0, { message: 'Choose at least one state', path: ['serviceStates'] });
+export type ShopSellingInput = z.input<typeof shopSellingSchema>;

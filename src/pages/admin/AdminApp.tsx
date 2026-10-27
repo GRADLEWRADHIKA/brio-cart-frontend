@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { Activity, Banknote, BarChart3, Bell, CalendarDays, LifeBuoy, Bike, Boxes, Clock, Undo2, ExternalLink, LayoutDashboard, LogOut, Map as MapIcon, MapPin, Menu, Package, ScrollText, Settings, ShoppingCart, Store, Tag, Tags, UserCheck, Users as UsersIcon, X } from 'lucide-react';
+import { Activity, Banknote, BarChart3, Bell, CalendarDays, FileCheck, Truck, LifeBuoy, Bike, Boxes, Clock, Undo2, ExternalLink, LayoutDashboard, LogOut, Map as MapIcon, MapPin, Menu, Package, ScrollText, Settings, ShoppingCart, Store, Tag, Tags, UserCheck, Users as UsersIcon, X } from 'lucide-react';
 import { hasPermission, ROLE_LABELS, type Permission } from '@shared/core';
 import { useAuth } from '@/hooks/useAuth';
 import { Logo } from '@/components/ui/Brand';
@@ -32,6 +32,8 @@ const Returns = lazy(() => import('./Returns'));
 const Analytics = lazy(() => import('./Analytics'));
 const DailySummary = lazy(() => import('./DailySummary'));
 const Shops = lazy(() => import('./Shops'));
+const Verification = lazy(() => import('./Verification'));
+const Shipping = lazy(() => import('./Shipping'));
 const Tickets = lazy(() => import('./Tickets'));
 const SystemStatus = lazy(() => import('./SystemStatus'));
 
@@ -49,6 +51,8 @@ const NAV: Array<{ to: string; label: string; icon: typeof Bell; end?: boolean; 
   { to: '/admin/rider-approvals', label: 'Rider approvals', icon: UserCheck, permission: 'rider:approve' },
   { to: '/admin/coupons', label: 'Coupons', icon: Tag, permission: 'coupon:manage' },
   { to: '/admin/shops', label: 'Shops', icon: Store, permission: 'shop:view' },
+  { to: '/admin/verification', label: 'Verification', icon: FileCheck, permission: 'kyc:review' },
+  { to: '/admin/shipping', label: 'Courier orders', icon: Truck, permission: 'shipping:manage' },
   { to: '/admin/products', label: 'Products', icon: Package, permission: 'catalog:view' },
   { to: '/admin/stock', label: 'Stock', icon: Boxes, permission: 'stock:view' },
   { to: '/admin/categories', label: 'Categories', icon: Tags, permission: 'category:manage' },
@@ -144,6 +148,9 @@ function Shell() {
                 <Route path="daily" element={guard('analytics:view', <DailySummary />)} />
                 <Route path="shops" element={guard('shop:view', <Shops />)} />
                 <Route path="shops/:id" element={guard('shop:view', <Shops />)} />
+                <Route path="verification" element={guard('kyc:review', <Verification />)} />
+                <Route path="verification/:userId" element={guard('kyc:review', <Verification />)} />
+                <Route path="shipping" element={guard('shipping:manage', <Shipping />)} />
                 <Route path="tickets" element={guard('support:manage', <Tickets />)} />
                 <Route path="returns" element={guard('return:manage', <Returns />)} />
                 <Route path="slots" element={guard('slot:manage', <DeliverySlots />)} />

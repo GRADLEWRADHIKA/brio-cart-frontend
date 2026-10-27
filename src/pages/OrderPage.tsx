@@ -6,6 +6,7 @@ import { buildWhatsAppUrl, composeWhatsAppOrderMessage, formatINR } from '@share
 import { orderApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
 import { useGuestOrders } from '@/store/guest-orders';
+import { ShippingCard } from '@/components/checkout/ShippingCard';
 import { useContact } from '@/hooks/useStoreInfo';
 import { OrderStatusTracker, StatusPill } from '@/components/checkout/OrderStatusTracker';
 import { LiveTracking } from '@/components/checkout/LiveTracking';
@@ -192,6 +193,8 @@ export default function OrderPage() {
           </ul>
         </section>
       )}
+
+      <ShippingCard order={order} className="mt-6" />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-6">

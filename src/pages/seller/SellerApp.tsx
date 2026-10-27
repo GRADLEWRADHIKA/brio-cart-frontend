@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, Boxes, CalendarDays, ExternalLink, LayoutDashboard, LogOut, Menu, Package, ShoppingBag, Store, Wallet, X } from 'lucide-react';
+import { Bell, Boxes, CalendarDays, ExternalLink, FileCheck, LayoutDashboard, LogOut, Menu, Package, ShoppingBag, Store, Wallet, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { shopApi } from '@/api/shop';
 import { Logo } from '@/components/ui/Brand';
@@ -12,6 +12,7 @@ import { NotificationBell, NotificationList } from '@/components/notifications/N
 import { CatalogScopeProvider, type CatalogScope } from '@/components/admin/CatalogScope';
 import { PageHeader } from '@/components/admin/kit';
 import { cn } from '@/utils';
+import { VerificationPanel } from '@/components/verification/VerificationPanel';
 
 const SellerDashboard = lazy(() => import('./SellerDashboard'));
 const SellerOrders = lazy(() => import('./SellerOrders'));
@@ -31,6 +32,7 @@ const NAV = [
   { to: '/seller/stock', label: 'Stock', icon: Boxes },
   { to: '/seller/daily', label: 'Daily summary', icon: CalendarDays },
   { to: '/seller/earnings', label: 'Earnings', icon: Wallet },
+  { to: '/seller/documents', label: 'Documents', icon: FileCheck },
   { to: '/seller/settings', label: 'Shop settings', icon: Store },
   { to: '/seller/notifications', label: 'Notifications', icon: Bell },
 ];
@@ -97,6 +99,15 @@ function Shell() {
           <span className="flex-1 truncate font-display text-lg font-semibold">{shop?.name ?? 'Brio Seller'}</span>
           <NotificationBell />
         </header>
+        {shop && shop.isActive && shop.verificationStatus !== 'APPROVED' && loc.pathname !== '/seller/documents' && (
+          <Link to="/seller/documents" className="block bg-turmeric-100 px-4 py-3 text-center text-sm font-semibold text-[#6b4500] hover:underline" data-testid="verify-banner">
+            {shop.verificationStatus === 'PENDING'
+              ? 'Brio Cart is checking your documents. Your products go live once they are approved.'
+              : shop.verificationStatus === 'REJECTED'
+                ? 'Your documents need attention. Fix them to start selling →'
+                : 'Upload your documents to start selling. Your products stay hidden until Brio Cart approves them →'}
+          </Link>
+        )}
         {shop && !shop.isActive && (
           <p role="alert" className="bg-tomato-100 px-4 py-3 text-center text-sm font-semibold text-tomato-500">
             Your shop is suspended by Brio Cart. Your products are hidden and you can’t take orders. Contact Brio Cart support to reactivate it.
@@ -123,6 +134,15 @@ function Shell() {
                   <Route path="daily" element={<DailySummary />} />
                   <Route path="earnings" element={<SellerEarnings />} />
                   <Route path="settings" element={<SellerSettings />} />
+                  <Route
+                    path="documents"
+                    element={
+                      <>
+                        <PageHeader title="Documents" subtitle="Brio Cart checks these before your products go live." />
+                        <VerificationPanel className="max-w-3xl" />
+                      </>
+                    }
+                  />
                   <Route
                     path="notifications"
                     element={

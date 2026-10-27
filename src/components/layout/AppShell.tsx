@@ -9,6 +9,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { CartDrawer } from '@/components/cart/CartDrawer';
 import { initNative, watchConnectivity } from '@/native/native';
 import { Spinner } from '@/components/ui/misc';
+import { DeliveryCodePopup } from '@/components/checkout/DeliveryCodePopup';
 
 function ScrollToTop() {
   const { pathname, search } = useLocation();
@@ -65,6 +66,7 @@ export function AppShell() {
         Skip to content
       </a>
       <OfflineBanner />
+      <DeliveryCodePopup />
       <ScrollToTop />
       <Header />
       <main id="main" className="flex-1">

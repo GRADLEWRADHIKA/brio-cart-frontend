@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ban, Banknote, Bell, Bike, CheckCircle2, ChevronDown, Clock, History, KeyRound, LogOut, MapPin, Navigation, Package, PackageCheck, Phone, Power, Radio, RefreshCw, TriangleAlert, Wallet, X } from 'lucide-react';
+import { Ban, Banknote, Bell, Bike, CheckCircle2, ChevronDown, Clock, FileCheck, History, KeyRound, LogOut, MapPin, Navigation, Package, PackageCheck, Phone, Power, Radio, RefreshCw, TriangleAlert, Wallet, X } from 'lucide-react';
 import { DELIVERY_OTP_LENGTH, DELIVERY_STATUS_LABELS, formatINR, ORDER_STATUS_LABELS } from '@shared/core';
 import { riderApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
@@ -11,6 +11,7 @@ import { BrioMark } from '@/components/ui/Brand';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/misc';
 import { NotificationBell, NotificationList } from '@/components/notifications/Notifications';
+import { VerificationPanel } from '@/components/verification/VerificationPanel';
 import { cn, formatDate, openExternal } from '@/utils';
 import { CashTab } from './CashTab';
 
@@ -600,7 +601,7 @@ function ApprovalPending({ status }: { status: string | null | undefined }) {
       {rejected ? <Ban className="mx-auto size-10 text-tomato-500" /> : <Clock className="mx-auto size-10 text-turmeric-400" />}
       <p className="mt-3 font-display text-2xl font-semibold text-forest-900">{rejected ? 'Application not approved' : 'Waiting for approval'}</p>
       <p className="mt-1 text-sm text-charcoal-500">
-        {rejected ? 'Please contact the Brio Cart store if you think this is a mistake.' : 'The store will review your details. You can receive orders once you’re approved.'}
+        {rejected ? 'Fix the documents below, or contact the Brio Cart store if you think this is a mistake.' : 'Upload your documents below. You can receive orders once Brio Cart approves them.'}
       </p>
     </div>
   );
@@ -612,6 +613,7 @@ const TABS = [
   { to: '/rider/earnings', label: 'Earnings', icon: Wallet },
   { to: '/rider/cash', label: 'Cash', icon: Banknote },
   { to: '/rider/notifications', label: 'Alerts', icon: Bell },
+  { to: '/rider/documents', label: 'Docs', icon: FileCheck },
 ];
 
 /** Delivery-partner web app, built for phone-sized browsers. Route-guarded to riders in App.tsx. */
@@ -656,7 +658,10 @@ export default function RiderApp() {
             <Spinner className="size-8" />
           </div>
         ) : !approved ? (
-          <ApprovalPending status={me.data?.riderStatus} />
+          <>
+            <ApprovalPending status={me.data?.riderStatus} />
+            <VerificationPanel className="mt-4" />
+          </>
         ) : (
           <Routes>
             <Route index element={<Deliveries />} />
@@ -664,6 +669,7 @@ export default function RiderApp() {
             <Route path="earnings" element={<EarningsTab />} />
             <Route path="cash" element={<CashTab />} />
             <Route path="notifications" element={<NotificationsTab />} />
+            <Route path="documents" element={<section className="space-y-3"><h1 className="font-display text-3xl font-semibold text-forest-900">Documents</h1><VerificationPanel /></section>} />
             <Route path="*" element={<Navigate to="/rider" replace />} />
           </Routes>
         )}

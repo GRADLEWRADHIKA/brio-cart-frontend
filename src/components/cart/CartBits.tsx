@@ -103,7 +103,7 @@ export function SellerSplit({ groups, className }: { groups: Array<{ shop: { nam
   );
 }
 
-export function TotalsTable({ totals, estimate = true }: { totals: OrderTotals; estimate?: boolean }) {
+export function TotalsTable({ totals, estimate = true, deliveryLabel }: { totals: OrderTotals; estimate?: boolean; /** Shown instead of the fee (courier orders: shipping is set later). */ deliveryLabel?: string }) {
   return (
     <dl className="space-y-2 text-sm">
       <div className="flex justify-between">
@@ -117,9 +117,9 @@ export function TotalsTable({ totals, estimate = true }: { totals: OrderTotals; 
         </div>
       )}
       <div className="flex justify-between">
-        <dt className="text-charcoal-500">Delivery</dt>
-        <dd className={cn('font-bold tabular-nums', totals.deliveryFee === 0 && totals.subtotal > 0 && 'text-leaf-600')}>
-          {totals.subtotal === 0 ? '—' : totals.deliveryFee === 0 ? 'FREE' : formatINR(totals.deliveryFee)}
+        <dt className="text-charcoal-500">{deliveryLabel ? 'Shipping' : 'Delivery'}</dt>
+        <dd className={cn('font-bold tabular-nums', !deliveryLabel && totals.deliveryFee === 0 && totals.subtotal > 0 && 'text-leaf-600')}>
+          {deliveryLabel ?? (totals.subtotal === 0 ? '—' : totals.deliveryFee === 0 ? 'FREE' : formatINR(totals.deliveryFee))}
         </dd>
       </div>
       <div className="flex items-baseline justify-between border-t border-dashed border-line pt-3">

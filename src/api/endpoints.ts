@@ -24,11 +24,24 @@ export const catalogApi = {
   shops: () => api.get<{ items: PublicShop[] }>('/shops').then((r) => r.items),
   shop: (slug: string) => api.get<{ shop: PublicShop }>(`/shops/${encodeURIComponent(slug)}`).then((r) => r.shop),
   deliverySlots: (days = 3) => api.get<{ days: SlotDay[] }>('/delivery-slots', { days }).then((r) => r.days),
-  validateCart: (items: Array<{ variantId: string; quantity: number }>, couponCode?: string) =>
-    api.post<CartValidation>('/cart/validate', { items, couponCode: couponCode || undefined }),
+  /** `shipState`: price for a courier delivery to that state (only shops that ship there). */
+  validateCart: (items: Array<{ variantId: string; quantity: number }>, couponCode?: string, shipState?: string) =>
+    api.post<CartValidation>('/cart/validate', { items, couponCode: couponCode || undefined, shipState: shipState || undefined }),
 };
 
+export interface ActiveDeliveryCode {
+  orderNumber: string;
+  accessKey: string | null;
+  code: string;
+  expiresAt: string | null;
+  sellerName: string | null;
+  riderName: string | null;
+}
+
 export const orderApi = {
+  /** Delivery codes for orders on the road: the signed-in customer's, plus guest orders this device placed. */
+  activeCodes: (orders: Array<{ orderNumber: string; key: string }>) =>
+    api.post<{ items: ActiveDeliveryCode[] }>('/orders/active-codes', { orders }).then((r) => r.items),
   /** One Idempotency-Key per checkout attempt: a retried submit returns the original order. */
   create: (input: CheckoutInput) =>
     request<{ order: Order; orders?: Order[]; replayed: boolean }>('/orders', { method: 'POST', body: input, headers: { 'Idempotency-Key': input.idempotencyKey } }),

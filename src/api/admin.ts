@@ -264,6 +264,10 @@ export const adminApi = {
   decideReturn: (id: string, body: { approve: boolean; note?: string; refundMethod?: 'STORE_CREDIT' | 'CASH'; refundAmount?: number }) =>
     api.post<{ request: ReturnRequestRow }>(`/admin/returns/${id}/decision`, body).then((r) => r.request),
   analytics: (range: { from?: string; to?: string }) => api.get<Analytics>('/admin/analytics', range),
+  shippingOrders: (status?: string) => api.get<{ items: Order[] }>('/admin/shipping', { status }).then((r) => r.items),
+  shippingQuote: (id: string, d: { fee: number; eta: string; courierName?: string; note?: string }) => api.post<{ order: Order }>(`/admin/orders/${id}/shipping/quote`, d).then((r) => r.order),
+  shippingShip: (id: string, d: { courierName: string; trackingNumber: string }) => api.post<{ order: Order }>(`/admin/orders/${id}/shipping/ship`, d).then((r) => r.order),
+  shippingDelivered: (id: string) => api.post<{ order: Order }>(`/admin/orders/${id}/shipping/delivered`).then((r) => r.order),
   shops: () => api.get<{ items: AdminShop[] }>('/admin/shops').then((r) => r.items),
   shop: (id: string) => api.get<{ shop: AdminShop; products: AdminProduct[]; earnings: ShopEarnings }>(`/admin/shops/${id}`),
   updateShop: (id: string, d: { isActive?: boolean; commissionPercent?: number | null }) => api.patch<{ shop: MyShop }>(`/admin/shops/${id}`, d).then((r) => r.shop),

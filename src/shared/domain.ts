@@ -137,6 +137,9 @@ export const NOTIFICATION_TYPES = [
   'ORDER_READY',
   'SHOP_PAYOUT',
   'SHOP_JOINED',
+  'DOCUMENTS',
+  'SHIPPING',
+  'DELIVERY_CODE',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -228,3 +231,82 @@ export const PICKUP_CODE_MAX_ATTEMPTS = 5;
 export const SHOP_PAYOUT_METHODS = ['CASH', 'BANK', 'UPI'] as const;
 export type ShopPayoutMethod = (typeof SHOP_PAYOUT_METHODS)[number];
 export const SHOP_PAYOUT_METHOD_LABELS: Record<ShopPayoutMethod, string> = { CASH: 'Cash', BANK: 'Bank transfer', UPI: 'UPI' };
+
+// ---------- Verification documents (shop owners and riders) ----------
+
+export const DOCUMENT_KINDS = ['ID_PROOF', 'BANK_PROOF', 'SHOP_LICENSE', 'FSSAI', 'GSTIN', 'DRIVING_LICENSE', 'VEHICLE_RC'] as const;
+export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
+
+export const DOCUMENT_LABELS: Record<DocumentKind, { name: string; hint: string; reference?: string }> = {
+  ID_PROOF: { name: 'Identity proof', hint: 'Aadhaar, PAN, passport or voter ID' },
+  BANK_PROOF: { name: 'Bank account proof', hint: 'Cancelled cheque or the first page of your passbook', reference: 'IFSC and last 4 digits of the account' },
+  SHOP_LICENSE: { name: 'Shop licence / local registration', hint: 'Shop and establishment licence, trade licence or municipal registration', reference: 'Registration number' },
+  FSSAI: { name: 'FSSAI registration / licence', hint: 'Needed if you sell food items', reference: 'FSSAI number (14 digits)' },
+  GSTIN: { name: 'GST registration', hint: 'GST certificate, if your shop is registered', reference: 'GSTIN (15 characters)' },
+  DRIVING_LICENSE: { name: 'Driving licence', hint: 'Valid for the vehicle you ride', reference: 'Licence number' },
+  VEHICLE_RC: { name: 'Vehicle documents', hint: 'Registration certificate (RC); insurance if you have it', reference: 'Vehicle number' },
+};
+
+/** What each role must upload (and get approved) before working; the rest are "if applicable". */
+export const REQUIRED_DOCUMENTS = {
+  SHOP_OWNER: ['ID_PROOF', 'BANK_PROOF', 'SHOP_LICENSE'],
+  RIDER: ['ID_PROOF', 'DRIVING_LICENSE', 'VEHICLE_RC', 'BANK_PROOF'],
+} as const satisfies Record<'SHOP_OWNER' | 'RIDER', readonly DocumentKind[]>;
+export const OPTIONAL_DOCUMENTS = { SHOP_OWNER: ['FSSAI', 'GSTIN'], RIDER: [] } as const satisfies Record<'SHOP_OWNER' | 'RIDER', readonly DocumentKind[]>;
+
+export const DOCUMENT_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'] as const;
+export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
+export const VERIFICATION_STATUSES = ['NOT_SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED'] as const;
+export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
+
+export const SELLER_AGREEMENT = [
+  'The documents I upload are genuine and belong to me or my shop.',
+  'I will sell only goods I am licensed to sell, at the prices and pack sizes I list.',
+  'I will accept or reject orders promptly and pack them hygienically.',
+  'Brio Cart keeps the agreed commission on my item sales and pays me the rest.',
+  'Brio Cart may suspend my shop for false documents, poor quality or repeated cancellations.',
+];
+export const RIDER_AGREEMENT = [
+  'The documents I upload are genuine and belong to me.',
+  'I will ride safely, with a valid licence, helmet and vehicle documents.',
+  'I will hand orders only to the customer, with their delivery code.',
+  'I will hand over all cash I collect to Brio Cart.',
+];
+
+// ---------- Where shops sell ----------
+
+/** LOCAL: Brio Cart's delivery areas only · STATES: also the chosen states, by courier · INDIA: all of India, by courier. */
+export const SERVICE_SCOPES = ['LOCAL', 'STATES', 'INDIA'] as const;
+export type ServiceScope = (typeof SERVICE_SCOPES)[number];
+export const SERVICE_SCOPE_LABELS: Record<ServiceScope, string> = {
+  LOCAL: 'My city (Brio Cart delivery areas)',
+  STATES: 'My city + chosen states (by courier)',
+  INDIA: 'All of India (by courier)',
+};
+
+/** States and union territories of India (ISO 3166-2:IN codes). */
+export const INDIAN_STATES = [
+  ['AN', 'Andaman and Nicobar Islands'], ['AP', 'Andhra Pradesh'], ['AR', 'Arunachal Pradesh'], ['AS', 'Assam'], ['BR', 'Bihar'],
+  ['CH', 'Chandigarh'], ['CG', 'Chhattisgarh'], ['DH', 'Dadra and Nagar Haveli and Daman and Diu'], ['DL', 'Delhi'], ['GA', 'Goa'],
+  ['GJ', 'Gujarat'], ['HR', 'Haryana'], ['HP', 'Himachal Pradesh'], ['JK', 'Jammu and Kashmir'], ['JH', 'Jharkhand'],
+  ['KA', 'Karnataka'], ['KL', 'Kerala'], ['LA', 'Ladakh'], ['LD', 'Lakshadweep'], ['MP', 'Madhya Pradesh'], ['MH', 'Maharashtra'],
+  ['MN', 'Manipur'], ['ML', 'Meghalaya'], ['MZ', 'Mizoram'], ['NL', 'Nagaland'], ['OD', 'Odisha'], ['PY', 'Puducherry'],
+  ['PB', 'Punjab'], ['RJ', 'Rajasthan'], ['SK', 'Sikkim'], ['TN', 'Tamil Nadu'], ['TS', 'Telangana'], ['TR', 'Tripura'],
+  ['UP', 'Uttar Pradesh'], ['UK', 'Uttarakhand'], ['WB', 'West Bengal'],
+] as const;
+export type StateCode = (typeof INDIAN_STATES)[number][0];
+export const STATE_NAMES: Record<string, string> = Object.fromEntries(INDIAN_STATES);
+
+/** Whether a shop's selling area covers a courier delivery to this state. */
+export function shopShipsTo(shop: { serviceScope: string; serviceStates: string }, state: string): boolean {
+  if (shop.serviceScope === 'INDIA') return true;
+  if (shop.serviceScope === 'STATES') return shop.serviceStates.split(',').includes(state);
+  return false;
+}
+
+export const SHIPPING_STATUS_LABELS: Record<string, string> = {
+  AWAITING_QUOTE: 'Waiting for shipping details',
+  QUOTED: 'Shipping cost set',
+  SHIPPED: 'Shipped by courier',
+  DELIVERED: 'Delivered',
+};

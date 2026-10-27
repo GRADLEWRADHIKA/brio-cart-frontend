@@ -9,10 +9,14 @@ import { OrderStatusTracker, StatusPill } from '@/components/checkout/OrderStatu
 import { Button } from '@/components/ui/Button';
 import { ProductImage } from '@/components/ui/misc';
 import { eventLabel, formatDate } from '@/utils';
+import { ShippingCard } from '@/components/checkout/ShippingCard';
 
 /** What the shop should do next, in one sentence. */
 function nextStep(o: ShopOrder) {
   if (o.status === 'PENDING') return 'Check you have everything, then accept or reject this order.';
+  if (o.shipping && o.status === 'PREPARING' && o.readyAt) return 'Packed. Brio Cart books the courier and adds the tracking number.';
+  if (o.shipping && (o.status === 'CONFIRMED' || o.status === 'PREPARING')) return 'This order goes by courier. Pack it and mark it ready; Brio Cart sets shipping and books the courier.';
+  if (o.shipping && o.status === 'OUT_FOR_DELIVERY') return 'Shipped with the courier. Brio Cart marks it delivered.';
   if (o.status === 'CONFIRMED') return 'Start preparing, or mark the order ready once it is packed.';
   if (o.status === 'PREPARING' && !o.readyAt) return 'Pack the order, then mark it ready for pickup.';
   if (o.status === 'PREPARING') return o.rider ? `${o.rider.name} is coming to collect it. Give them the pickup code.` : 'Waiting for a rider to take it. Give the pickup code to the rider who collects it.';
@@ -91,6 +95,7 @@ export default function SellerOrderDetail() {
             {actionError && <p className="mt-3 text-sm font-semibold text-tomato-500" role="alert">{actionError.message}</p>}
           </Card>
 
+          <ShippingCard order={o} />
           {o.pickupCode && (
             <section className="rounded-3xl bg-forest-800 p-6 text-ivory-50" aria-label="Pickup code">
               <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-lime-300"><KeyRound className="size-4" /> Pickup code</p>

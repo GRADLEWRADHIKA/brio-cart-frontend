@@ -1,4 +1,4 @@
-import type { OrderStatus, ShopPayoutMethod, StockReason } from '@shared/core';
+import type { OrderStatus, ServiceScope, ShopPayoutMethod, StockReason } from '@shared/core';
 import { api, request } from './client';
 import type { Order } from '@/types';
 import type { AdminProduct, DailySummary, LowStockItem, ProductPayload, StockMovementRow } from './admin';
@@ -19,6 +19,12 @@ export interface MyShop {
   prepMinutes: number;
   commissionPercent: number;
   hasOwnCommission: boolean;
+  /** Document check: only APPROVED shops' products are on the store. */
+  verificationStatus: 'NOT_SUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  verificationNote: string | null;
+  /** Where the shop sells: LOCAL, chosen STATES or all of INDIA (outside the city by courier). */
+  serviceScope: ServiceScope;
+  serviceStates: string[];
   createdAt: string;
 }
 
@@ -71,6 +77,7 @@ export interface ShopProfilePayload {
 export const shopApi = {
   me: () => api.get<{ shop: MyShop }>('/shop/me').then((r) => r.shop),
   saveProfile: (d: ShopProfilePayload) => api.put<{ shop: MyShop }>('/shop/me', d).then((r) => r.shop),
+  setSelling: (d: { serviceScope: ServiceScope; serviceStates: string[] }) => api.put<{ shop: MyShop }>('/shop/me/selling', d).then((r) => r.shop),
   setOpen: (isOpen: boolean) => api.patch<{ shop: MyShop }>('/shop/me/open', { isOpen }).then((r) => r.shop),
   summary: () => api.get<ShopSummary>('/shop/summary'),
   earnings: () => api.get<ShopEarnings & { commissionPercent: number }>('/shop/earnings'),
