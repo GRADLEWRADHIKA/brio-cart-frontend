@@ -24,20 +24,26 @@ export function SlotRow({ slot, onDone }: { slot?: AdminSlot; onDone?: () => voi
   });
   const fields = save.error instanceof ApiError ? save.error.details?.fields : undefined;
   const invalid = v.end <= v.start || !(v.capacity > 0);
+  const locked = !!slot?.isStandard;
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-line p-4">
-      <TextField label="From" type="time" value={v.start} onChange={(e) => setV({ ...v, start: e.target.value })} error={fields?.start} className="w-32" />
-      <TextField label="To" type="time" value={v.end} onChange={(e) => setV({ ...v, end: e.target.value })} error={fields?.end ?? (v.end <= v.start ? 'End must be after start' : undefined)} className="w-32" />
+      {locked && (
+        <p className="w-full text-xs font-extrabold uppercase tracking-wide text-forest-700">
+          Standard slot · always offered, every day. You can change its capacity and label.
+        </p>
+      )}
+      <TextField label="From" type="time" value={v.start} disabled={locked} onChange={(e) => setV({ ...v, start: e.target.value })} error={fields?.start} className="w-32" />
+      <TextField label="To" type="time" value={v.end} disabled={locked} onChange={(e) => setV({ ...v, end: e.target.value })} error={fields?.end ?? (v.end <= v.start ? 'End must be after start' : undefined)} className="w-32" />
       <TextField label="Orders per slot" type="number" min={1} value={v.capacity} onChange={(e) => setV({ ...v, capacity: Number(e.target.value) })} error={fields?.capacity} className="w-36" />
       <TextField label="Label" optional value={v.label} maxLength={40} onChange={(e) => setV({ ...v, label: e.target.value })} placeholder="e.g. Morning" className="w-40" />
       <div className="mb-1 flex flex-wrap gap-1" role="group" aria-label="Days">
         {DAYS.map((d, i) => (
-          <button key={d} type="button" aria-pressed={v.days[i] === '1'} onClick={() => setV({ ...v, days: v.days.split('').map((c, j) => (j === i ? (c === '1' ? '0' : '1') : c)).join('') })} className={cn('rounded-full px-2.5 py-1 text-xs font-bold', v.days[i] === '1' ? 'bg-forest-800 text-ivory-50' : 'bg-ivory-100 text-charcoal-500')}>
+          <button key={d} type="button" disabled={locked} aria-pressed={v.days[i] === '1'} onClick={() => setV({ ...v, days: v.days.split('').map((c, j) => (j === i ? (c === '1' ? '0' : '1') : c)).join('') })} className={cn('rounded-full px-2.5 py-1 text-xs font-bold', v.days[i] === '1' ? 'bg-forest-800 text-ivory-50' : 'bg-ivory-100 text-charcoal-500')}>
             {d}
           </button>
         ))}
       </div>
-      <label className="mb-3 flex items-center gap-2 text-sm font-bold"><Toggle checked={v.isActive} label="Slot enabled" onChange={(isActive) => setV({ ...v, isActive })} /> Enabled</label>
+      <label className="mb-3 flex items-center gap-2 text-sm font-bold"><Toggle checked={v.isActive} label="Slot enabled" disabled={locked} onChange={(isActive) => setV({ ...v, isActive })} /> Enabled</label>
       <Button size="sm" className="mb-1.5" disabled={invalid} loading={save.isPending} onClick={() => save.mutate(v)}>{slot ? 'Save' : 'Add slot'}</Button>
       {save.error && !fields && <p className="w-full text-sm font-semibold text-tomato-500">{(save.error as Error).message}</p>}
     </div>
@@ -62,13 +68,13 @@ export default function DeliverySlots() {
   const [adding, setAdding] = useState(false);
   return (
     <>
-      <PageHeader title="Delivery slots" subtitle="Customers pick one of these at checkout. Full or past slots can't be booked." actions={<Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add slot</Button>} />
+      <PageHeader title="Delivery slots" subtitle="Customers pick one of these at checkout. The standard 6–8 and 8–10 AM slots are always offered; add more if you need them. Full or past slots can't be booked." actions={<Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add slot</Button>} />
       <Card className="mb-4">{data && <Cutoff key={data.cutoff ?? ''} value={data.cutoff} />}</Card>
       <Card>
         <div className="space-y-3">
           {adding && <SlotRow onDone={() => setAdding(false)} />}
           {data?.slots.map((s) => <SlotRow key={s.id + s.isActive} slot={s} />)}
-          {data?.slots.length === 0 && !adding && <p className="text-sm text-charcoal-500">No slots yet. Checkout uses the slot labels in Store settings until you add one.</p>}
+          {data?.slots.length === 0 && !adding && <p className="text-sm text-charcoal-500">No slots yet. Checkout uses the slot labels in Store settings until you add one. The standard 6–8 and 8–10 AM slots appear here when the server starts.</p>}
         </div>
       </Card>
     </>

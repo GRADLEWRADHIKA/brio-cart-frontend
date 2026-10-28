@@ -100,6 +100,8 @@ export interface AdminSlot {
   days: string;
   isActive: boolean;
   sortOrder: number;
+  /** The standard 6–8 and 8–10 AM slots: always on, every day; only capacity and label can change. */
+  isStandard?: boolean;
 }
 
 export interface SystemStatus {
