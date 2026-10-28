@@ -1,12 +1,29 @@
 import { memo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Star } from 'lucide-react';
 import type { Product } from '@/types';
 import { useCart } from '@/store/cart';
 import { useAddToCart } from '@/hooks/useAddToCart';
 import { Price, ProductImage, QuantityStepper } from '@/components/ui/misc';
 import { cn, discountPercent } from '@/utils';
 import { tintFor } from './tints';
+
+/** Products the store has put in the Bestsellers collection. */
+export const isBestSeller = (p: Pick<Product, 'collections'>) => p.collections.includes('bestsellers');
+
+/** The "Best Seller" label shown at the top of a product's image. */
+export function BestSellerBadge({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full bg-turmeric-400 font-extrabold uppercase tracking-wide text-forest-900 shadow-sm',
+        size === 'lg' ? 'px-3 py-1.5 text-sm' : 'px-2 py-0.5 text-[0.68rem]',
+      )}
+    >
+      <Star className={size === 'lg' ? 'size-4' : 'size-3'} fill="currentColor" strokeWidth={0} /> Best Seller
+    </span>
+  );
+}
 
 /** The one product card used across the homepage rails, catalogue grid and related items. */
 export const ProductCard = memo(function ProductCard({ product, eager, className }: { product: Product; eager?: boolean; className?: string }) {
@@ -40,6 +57,7 @@ export const ProductCard = memo(function ProductCard({ product, eager, className
           />
         </div>
         <div className="pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1">
+          {isBestSeller(product) && <BestSellerBadge />}
           {off > 0 && <span className="rounded-full bg-tomato-500 px-2 py-0.5 text-[0.68rem] font-extrabold text-white shadow-sm">{off}% OFF</span>}
           {!product.inStock && (
             <span className="rounded-full bg-charcoal-900/85 px-2 py-0.5 text-[0.68rem] font-bold text-white">{product.shop && !product.shop.isOpen ? 'Shop closed' : 'Out of stock'}</span>

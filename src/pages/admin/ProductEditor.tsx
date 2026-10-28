@@ -175,7 +175,7 @@ Reason (shown to the shop):`);
                 {categories?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </SelectField>
               <TextField label="Highlight" optional placeholder="e.g. Vitamin C Rich" maxLength={60} {...register('highlight')} />
-              <TextAreaField label="Description" optional rows={3} {...register('description')} className="sm:col-span-2" />
+              <TextAreaField label="Description" optional rows={4} hint="Line breaks are kept as you type them." {...register('description')} className="sm:col-span-2" />
               <TextField label="Search keywords" optional placeholder="Hindi/Hinglish names, e.g. aloo alu" {...register('keywords')} className="sm:col-span-2" />
               {!isNew && <TextField label="URL slug" {...register('slug')} error={e.slug?.message} />}
               <TextField label="Sort order" type="number" min={0} {...register('sortOrder')} hint="Lower numbers appear first." />
@@ -192,7 +192,7 @@ Reason (shown to the shop):`);
                 return (
                   <div key={f.id} className="rounded-2xl border border-line p-4">
                     <div className="grid gap-3 sm:grid-cols-4">
-                      <TextField label="Pack size" placeholder="500 g" {...register(`variants.${i}.label`, { required: 'Required' })} error={e.variants?.[i]?.label?.message} />
+                      <TextField label="Pack size" placeholder="3 pieces, 500 g, 1 dozen" hint="What the customer gets. A plain number is saved as pieces." {...register(`variants.${i}.label`, { required: 'Required' })} error={e.variants?.[i]?.label?.message} />
                       <TextField label="Price (₹)" type="number" step="0.01" min="0" {...register(`variants.${i}.price`, { required: 'Required', validate: (v) => Number(v) > 0 || 'Must be > 0' })} error={e.variants?.[i]?.price?.message} />
                       <TextField label="Old price (₹)" optional type="number" step="0.01" min="0" {...register(`variants.${i}.mrp`)} />
                       <TextField label="Max per order" type="number" min="1" max="99" {...register(`variants.${i}.maxPerOrder`)} />
@@ -231,7 +231,7 @@ Reason (shown to the shop):`);
               Upload image
             </Button>
             {uploadError && <p className="mt-2 text-sm font-semibold text-tomato-500">{uploadError}</p>}
-            <TextField label="…or image URL" optional placeholder="https://…" {...register('imageUrl')} className="mt-3" hint="Square photos look best. Max 5 MB." />
+            <TextField label="…or image URL" optional placeholder="https://…" {...register('imageUrl')} className="mt-3" hint="Any shape works: uploads are fitted to a square without cropping. Max 5 MB." />
           </Card>
           <Card title="Visibility">
             <Checkbox

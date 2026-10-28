@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Banknote, ChevronRight, Clock3, PackageX, ShieldCheck, ShoppingBag, Truck } from 'lucide-react';
+import { Banknote, ChevronRight, Clock3, Package, PackageX, ShieldCheck, ShoppingBag, Truck } from 'lucide-react';
 import { buildWhatsAppUrl, formatINR } from '@shared/core';
 import { catalogApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
@@ -9,7 +9,7 @@ import { useCart } from '@/store/cart';
 import { useUi } from '@/store/ui';
 import { useAddToCart } from '@/hooks/useAddToCart';
 import { useContact, useStoreInfo } from '@/hooks/useStoreInfo';
-import { ProductCard } from '@/components/products/ProductCard';
+import { BestSellerBadge, isBestSeller, ProductCard } from '@/components/products/ProductCard';
 import { tintFor } from '@/components/products/tints';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { EmptyState, Price, ProductImage, QuantityStepper, SectionHeading } from '@/components/ui/misc';
@@ -82,7 +82,10 @@ export default function ProductPage() {
         <div className={cn('relative aspect-square overflow-hidden rounded-[2rem]', tint.plate)}>
           <div className="absolute inset-[12%] rounded-full bg-white/50 blur-2xl" aria-hidden />
           <ProductImage src={product.imageUrl} alt={product.name} eager sizes="(min-width:1024px) 600px, 100vw" className="relative size-full p-8 sm:p-14" imgClassName={cn(!product.inStock && 'grayscale')} />
-          {off > 0 && <span className="absolute left-5 top-5 rounded-full bg-tomato-500 px-3 py-1.5 text-sm font-extrabold text-white">{off}% OFF</span>}
+          <div className="absolute left-5 top-5 flex flex-col items-start gap-2">
+            {isBestSeller(product) && <BestSellerBadge size="lg" />}
+            {off > 0 && <span className="rounded-full bg-tomato-500 px-3 py-1.5 text-sm font-extrabold text-white">{off}% OFF</span>}
+          </div>
         </div>
 
         <div className="lg:py-4">
@@ -108,6 +111,9 @@ export default function ProductPage() {
 
           <div className="mt-6">
             <Price price={variant.price} mrp={variant.mrp} size="lg" />
+            <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-mint-100 px-3 py-1 text-sm text-forest-800" data-testid="you-get">
+              <Package className="size-4" /> You get <strong className="font-extrabold">{variant.label}</strong>
+            </p>
             <p className="mt-1 text-sm text-charcoal-500">Price for {variant.label} · inclusive of all taxes</p>
           </div>
 

@@ -80,7 +80,7 @@ function OneShop({ slug }: { slug: string }) {
           <div className="min-w-0">
             <p className="eyebrow text-lime-300">Local shop on Brio Cart</p>
             <h1 className="mt-1 font-display text-4xl font-semibold">{s.name}</h1>
-            {s.description && <p className="mt-1 text-ivory-50/80">{s.description}</p>}
+            {s.description && <p className="mt-1 whitespace-pre-line text-ivory-50/80">{s.description}</p>}
             <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ivory-50/80">
               <span className="inline-flex items-center gap-1"><MapPin className="size-4" /> {s.address}{s.area ? `, ${s.area.name}` : ''}</span>
               <span className="inline-flex items-center gap-1"><Clock className="size-4" /> Usually ready in {s.prepMinutes} min</span>
