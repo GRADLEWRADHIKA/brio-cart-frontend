@@ -61,8 +61,12 @@ function useOpen() {
   };
 }
 
-/** Bell with unread badge and a dropdown of the latest notifications. Polls every 30 seconds. */
-export function NotificationBell({ tone = 'light', className }: { tone?: 'light' | 'dark'; className?: string }) {
+/**
+ * Bell with unread badge and a dropdown of the latest notifications. Polls every 30 seconds.
+ * `align`: which edge of the bell the dropdown lines up with. Use "left" for a bell near the left of
+ * the screen (the dashboard sidebars) so the dropdown opens towards the page instead of off-screen.
+ */
+export function NotificationBell({ tone = 'light', align = 'right', className }: { tone?: 'light' | 'dark'; align?: 'left' | 'right'; className?: string }) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -107,7 +111,10 @@ export function NotificationBell({ tone = 'light', className }: { tone?: 'light'
         <div
           role="dialog"
           aria-label="Notifications"
-          className="fixed inset-x-3 top-16 z-[90] overflow-hidden rounded-3xl border border-line bg-white text-charcoal-900 shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-96"
+          className={cn(
+            'fixed inset-x-3 top-16 z-[90] overflow-hidden rounded-3xl border border-line bg-white text-charcoal-900 shadow-2xl sm:absolute sm:inset-x-auto sm:top-12 sm:w-96',
+            align === 'left' ? 'sm:left-0' : 'sm:right-0',
+          )}
         >
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <p className="font-extrabold text-forest-900">Notifications</p>

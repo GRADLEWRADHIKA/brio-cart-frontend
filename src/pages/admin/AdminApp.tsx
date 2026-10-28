@@ -100,7 +100,7 @@ function Shell() {
             <Logo tone="ivory" />
           </Link>
           <div className="flex items-center gap-1">
-            <NotificationBell tone="dark" className="hidden lg:block" />
+            <NotificationBell tone="dark" align="left" className="hidden lg:block" />
             <button type="button" className="grid size-9 place-items-center rounded-full bg-white/10 lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu">
               <X className="size-4" />
             </button>
