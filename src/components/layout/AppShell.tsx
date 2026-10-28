@@ -5,6 +5,7 @@ import { WifiOff } from 'lucide-react';
 import { Header, MobileTabBar } from './Header';
 import { Footer } from './Footer';
 import { Toaster } from './Toaster';
+import { RiderArrivedWatcher } from '@/components/notifications/RiderArrivedAlert';
 import { ErrorBoundary } from './ErrorBoundary';
 import { CartDrawer } from '@/components/cart/CartDrawer';
 import { initNative, watchConnectivity } from '@/native/native';
@@ -80,6 +81,7 @@ export function AppShell() {
       <MobileTabBar />
       <CartDrawer />
       <Toaster />
+      <RiderArrivedWatcher />
     </div>
   );
 }

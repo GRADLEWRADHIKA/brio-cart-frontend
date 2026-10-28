@@ -3,6 +3,7 @@ import { authApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
 import { tokenStore } from '@/services/token-store';
 import type { User } from '@/types';
+import { forgetPushDevice } from '@/hooks/usePush';
 
 export function useAuth() {
   const qc = useQueryClient();
@@ -33,6 +34,7 @@ export function useAuth() {
   const register = useMutation({ mutationFn: authApi.register, onSuccess: onSession });
   const logout = useMutation({
     mutationFn: async () => {
+      await forgetPushDevice();
       await authApi.logout().catch(() => undefined);
       await tokenStore.set(null);
     },

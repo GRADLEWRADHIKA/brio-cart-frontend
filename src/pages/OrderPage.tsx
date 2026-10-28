@@ -20,6 +20,7 @@ import { Button, ButtonLink } from '@/components/ui/Button';
 import { EmptyState, ProductImage } from '@/components/ui/misc';
 import { WhatsAppIcon } from '@/components/ui/Brand';
 import { formatDate, openExternal } from '@/utils';
+import { PushPrompt, useArrivedPopup } from '@/components/notifications/RiderArrivedAlert';
 
 function Confetti() {
   // A light shower of leaves for the moment the order is confirmed by the server.
@@ -72,6 +73,7 @@ export default function OrderPage() {
   useEffect(() => {
     document.title = `Order ${orderNumber} — Brio Cart`;
   }, [orderNumber]);
+  const arrivedPopup = useArrivedPopup(order);
 
   if (isLoading) {
     return (
@@ -126,6 +128,10 @@ export default function OrderPage() {
 
   return (
     <div className="container-page max-w-5xl py-8 sm:py-12">
+      {arrivedPopup}
+      {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && !order.shipping && (
+        <PushPrompt className="mb-4" text="Get an alert on your phone when your rider arrives, even if this page is closed." />
+      )}
       <section className="grain relative overflow-hidden rounded-[2rem] bg-forest-900 p-6 text-ivory-50 sm:p-10">
         {justPlaced && <Confetti />}
         <div className="relative z-10 flex flex-wrap items-start justify-between gap-6">

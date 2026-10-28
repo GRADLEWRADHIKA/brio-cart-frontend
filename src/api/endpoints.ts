@@ -109,13 +109,15 @@ export const riderApi = {
   /** Shop orders need the shop's pickup code; Brio Cart's own don't. */
   pickup: (id: string, code?: string) => api.post<{ order: Order }>(`/rider/orders/${id}/pickup`, code ? { code } : {}).then((r) => r.order),
   start: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/start`).then((r) => r.order),
+  /** "I've arrived" at the customer's door (used when there's no pinned location or GPS is off). */
+  arrived: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/arrived`).then((r) => r.order),
   fail: (id: string, reason: string) => api.post<{ order: Order }>(`/rider/orders/${id}/fail`, { reason }).then((r) => r.order),
   /** `cashAmount` in rupees for cash on delivery; `cashCollected` for UPI on delivery. */
   deliver: (id: string, otp: string, cash: { cashCollected?: boolean; cashAmount?: number; cashDifferenceReason?: string }) =>
     api.post<{ order: Order }>(`/rider/orders/${id}/deliver`, { otp, ...cash }).then((r) => r.order),
   cash: () => api.get<RiderCash>('/rider/cash'),
   handover: (amount: number, note?: string) => api.post<{ settlement: { id: string } }>('/rider/cash/handover', { amount, note }),
-  location: (lat: number, lng: number, accuracy?: number) => api.post<{ ok: true; ordersUpdated: number }>('/rider/location', { lat, lng, accuracy }),
+  location: (lat: number, lng: number, accuracy?: number) => api.post<{ ok: true; ordersUpdated: number; arrived: number }>('/rider/location', { lat, lng, accuracy }),
   earnings: () => api.get<RiderEarnings>('/rider/earnings'),
 };
 
@@ -124,6 +126,9 @@ export const notificationsApi = {
   unreadCount: () => api.get<{ count: number }>('/notifications/unread-count').then((r) => r.count),
   markRead: (id: string) => api.post<{ notification: AppNotification }>(`/notifications/${id}/read`).then((r) => r.notification),
   markAllRead: () => api.post<{ ok: true; updated: number }>('/notifications/read-all'),
+  pushKey: () => api.get<{ publicKey: string }>('/notifications/push/key').then((r) => r.publicKey),
+  subscribePush: (sub: { endpoint: string; keys: { p256dh: string; auth: string } }) => api.post<{ ok: true }>('/notifications/push', sub),
+  unsubscribePush: (endpoint: string) => api.delete<{ ok: true }>('/notifications/push', { endpoint }),
 };
 
 /** Direct link to the invoice PDF (the session cookie, or the guest access key, authorises it). */

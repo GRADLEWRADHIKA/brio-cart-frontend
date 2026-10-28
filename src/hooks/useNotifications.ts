@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationsApi } from '@/api/endpoints';
 import { useAuth } from '@/hooks/useAuth';
 
-/** In-app notifications are polled (no push or websockets). */
-export const NOTIFICATION_POLL_MS = 30_000;
+/** In-app notifications are polled; urgent ones also arrive as browser push (usePush). */
+export const NOTIFICATION_POLL_MS = 15_000;
 
 export function useUnreadCount() {
   const { user } = useAuth();

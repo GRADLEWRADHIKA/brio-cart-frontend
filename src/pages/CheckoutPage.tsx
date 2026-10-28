@@ -22,6 +22,7 @@ import { WhatsAppOrderButton } from '@/components/cart/WhatsAppOrderButton';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { EmptyState, ProductImage } from '@/components/ui/misc';
 import { cn, newIdempotencyKey } from '@/utils';
+import { PinLocation, type Pin } from '@/components/checkout/PinLocation';
 
 const formSchema = z.object({
   ...addressFields,
@@ -150,9 +151,13 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addresses.data]);
 
+  /** Pinned door location, from "Pin my exact location" or a saved address. */
+  const [pin, setPin] = useState<Pin | null>(null);
+
   function applyAddress(id: string) {
     const a = addresses.data?.find((x) => x.id === id);
     if (!a) return;
+    setPin(a.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng } : null);
     const opts = { shouldValidate: true };
     setValue('name', a.name, opts);
     setValue('phone', a.phone, opts);
@@ -209,7 +214,16 @@ export default function CheckoutPage() {
       return;
     }
     const payload = {
-      customer: { name: v.name, phone: v.phone, areaId: courier ? 'courier' : v.areaId, house: v.house, street: v.street, landmark: v.landmark, instructions: v.instructions || undefined },
+      customer: {
+        name: v.name,
+        phone: v.phone,
+        areaId: courier ? 'courier' : v.areaId,
+        house: v.house,
+        street: v.street,
+        landmark: v.landmark,
+        instructions: v.instructions || undefined,
+        ...(pin && !courier ? pin : {}),
+      },
       deliverySlot: courier || bookable ? undefined : v.deliverySlot || undefined,
       deliverySlotId: !courier && bookable ? booking?.slotId : undefined,
       deliveryDate: !courier && bookable ? booking?.date : undefined,
@@ -370,6 +384,7 @@ export default function CheckoutPage() {
               <TextField label="Street / area details" autoComplete="address-line2" placeholder="e.g. Sector C, near park" {...register('street')} error={errors.street?.message} />
               <TextField label="Landmark" optional placeholder="e.g. Opposite Kapoorthala market" {...register('landmark')} error={errors.landmark?.message} />
               <TextAreaField label="Delivery instructions" optional rows={2} placeholder="e.g. Ring the bell once, leave with the guard" {...register('instructions')} error={errors.instructions?.message} className="sm:col-span-2" />
+              {!courier && <PinLocation value={pin} onChange={setPin} className="sm:col-span-2" />}
             </div>
             <div className="mt-5 space-y-3">
               {user ? (

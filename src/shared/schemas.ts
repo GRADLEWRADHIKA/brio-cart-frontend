@@ -32,6 +32,9 @@ export const addressFields = {
   house: text(2, 120, 'House / building'),
   street: text(3, 160, 'Street / area'),
   landmark: optionalText(120),
+  /** Door location the customer pinned with their phone's GPS. Optional; both or neither. */
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
 };
 
 export const addressSchema = z.object({

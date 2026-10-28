@@ -21,6 +21,7 @@ import { EmptyState, ProductImage } from '@/components/ui/misc';
 import { StatusPill } from '@/components/checkout/OrderStatusTracker';
 import { PageFallback } from '@/components/layout/AppShell';
 import { cn, formatDate } from '@/utils';
+import { PinLocation } from '@/components/checkout/PinLocation';
 
 const TABS = [
   { key: 'orders', label: 'Orders', icon: Package },
@@ -152,7 +153,17 @@ function AddressForm({ initial, onDone }: { initial?: Address; onDone: () => voi
   const form = useForm<AddrIn, unknown, AddrOut>({
     resolver: zodResolver(addressSchema),
     defaultValues: initial
-      ? { label: initial.label ?? '', name: initial.name, phone: initial.phone, areaId: initial.area.isActive ? initial.areaId : '', house: initial.house, street: initial.street, landmark: initial.landmark ?? '', isDefault: initial.isDefault }
+      ? {
+          label: initial.label ?? '',
+          name: initial.name,
+          phone: initial.phone,
+          areaId: initial.area.isActive ? initial.areaId : '',
+          house: initial.house,
+          street: initial.street,
+          landmark: initial.landmark ?? '',
+          isDefault: initial.isDefault,
+          ...(initial.lat != null && initial.lng != null ? { lat: initial.lat, lng: initial.lng } : {}),
+        }
       : { label: '', name: '', phone: '', areaId: '', house: '', street: '', landmark: '', isDefault: false },
   });
   const save = useMutation({
@@ -163,6 +174,7 @@ function AddressForm({ initial, onDone }: { initial?: Address; onDone: () => voi
     },
   });
   const e = form.formState.errors;
+  const [pinLat, pinLng] = form.watch(['lat', 'lng']);
   return (
     <form onSubmit={form.handleSubmit((v) => save.mutate(v))} noValidate className="grid gap-4 rounded-[1.75rem] border border-line bg-white p-5 sm:grid-cols-2 sm:p-6">
       <TextField label="Label" optional placeholder="Home, Office…" {...form.register('label')} />
@@ -179,6 +191,14 @@ function AddressForm({ initial, onDone }: { initial?: Address; onDone: () => voi
       <TextField label="House / building" {...form.register('house')} error={e.house?.message} />
       <TextField label="Street / area" {...form.register('street')} error={e.street?.message} />
       <TextField label="Landmark" optional {...form.register('landmark')} className="sm:col-span-2" />
+      <PinLocation
+        value={pinLat != null && pinLng != null ? { lat: pinLat, lng: pinLng } : null}
+        onChange={(p) => {
+          form.setValue('lat', p?.lat, { shouldDirty: true });
+          form.setValue('lng', p?.lng, { shouldDirty: true });
+        }}
+        className="sm:col-span-2"
+      />
       <Checkbox label="Make this my default address" {...form.register('isDefault')} className="sm:col-span-2" />
       {save.error && <p className="text-sm font-semibold text-tomato-500 sm:col-span-2">{(save.error as Error).message}</p>}
       <div className="flex gap-2 sm:col-span-2">

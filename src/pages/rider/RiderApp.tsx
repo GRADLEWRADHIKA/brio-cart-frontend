@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ban, Banknote, Bell, Bike, CheckCircle2, ChevronDown, Clock, FileCheck, History, KeyRound, LogOut, MapPin, Navigation, Package, PackageCheck, Phone, Power, Radio, RefreshCw, TriangleAlert, Wallet, X } from 'lucide-react';
+import { Ban, Banknote, Bell, Bike, CheckCircle2, ChevronDown, Clock, FileCheck, History, KeyRound, LogOut, MapPin, MapPinCheck, Navigation, Package, PackageCheck, Phone, Power, Radio, RefreshCw, TriangleAlert, Wallet, X } from 'lucide-react';
 import { DELIVERY_OTP_LENGTH, DELIVERY_STATUS_LABELS, formatINR, ORDER_STATUS_LABELS } from '@shared/core';
 import { riderApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
@@ -14,6 +14,8 @@ import { NotificationBell, NotificationList } from '@/components/notifications/N
 import { VerificationPanel } from '@/components/verification/VerificationPanel';
 import { cn, formatDate, openExternal } from '@/utils';
 import { CashTab } from './CashTab';
+import { NewBookingAlert } from './NewBookingAlert';
+import { PushPrompt } from '@/components/notifications/RiderArrivedAlert';
 
 /** A stationary phone may report no new fix for minutes; resend the last one so the rider stays "nearby". */
 const HEARTBEAT_MS = 60_000;
@@ -23,6 +25,7 @@ const HEARTBEAT_MS = 60_000;
  * rider, and applies it to orders they are delivering. Uploads at most every `minGapMs`.
  */
 function useLiveLocation(enabled: boolean, minGapMs: number) {
+  const qc = useQueryClient();
   const [state, setState] = useState<{ status: 'off' | 'waiting' | 'live' | 'error'; accuracy?: number; sentAt?: Date; message?: string }>({ status: 'off' });
   const last = useRef(0);
   const gap = useRef(minGapMs);
@@ -42,7 +45,11 @@ function useLiveLocation(enabled: boolean, minGapMs: number) {
       last.current = Date.now();
       riderApi
         .location(c.latitude, c.longitude, c.accuracy)
-        .then(() => setState({ status: 'live', accuracy: c.accuracy, sentAt: new Date() }))
+        .then((r) => {
+          setState({ status: 'live', accuracy: c.accuracy, sentAt: new Date() });
+          // Reached a pinned door: the card switches to "customer told you've arrived".
+          if (r.arrived) void qc.invalidateQueries({ queryKey: ['rider', 'orders'] });
+        })
         .catch((e) => setState({ status: 'error', message: (e as Error).message }));
     };
     const id = navigator.geolocation.watchPosition(
@@ -60,6 +67,7 @@ function useLiveLocation(enabled: boolean, minGapMs: number) {
       navigator.geolocation.clearWatch(id);
       clearInterval(beat);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
   return state;
 }
@@ -211,10 +219,11 @@ function OrderCard({ order, onSheet }: { order: Order; onSheet: (s: { order: Ord
   const [pickupCode, setPickupCode] = useState('');
   const pickup = useMutation({ mutationFn: () => riderApi.pickup(order.id, order.shop ? pickupCode : undefined), onSuccess: onDone });
   const start = useMutation({ mutationFn: () => riderApi.start(order.id), onSuccess: onDone });
+  const arrived = useMutation({ mutationFn: () => riderApi.arrived(order.id), onSuccess: onDone });
   const address = [order.customer.house, order.customer.street, order.customer.landmark, order.customer.areaName, 'Lucknow'].filter(Boolean).join(', ');
   const toCollect = order.paymentStatus === 'UNPAID' && order.paymentMethod !== 'ONLINE';
   const step = order.delivery.status;
-  const error = accept.error ?? pickup.error ?? start.error;
+  const error = accept.error ?? pickup.error ?? start.error ?? arrived.error;
   const waitingForStore = step === 'ACCEPTED' && order.status === 'PENDING';
   /** Shop orders: collect from the shop once it has packed the order, with its pickup code. */
   const shop = order.shop;
@@ -323,6 +332,21 @@ function OrderCard({ order, onSheet }: { order: Order; onSheet: (s: { order: Ord
             Start trip · out for delivery
           </Button>
         )}
+        {step === 'OUT_FOR_DELIVERY' &&
+          (order.delivery.arrivedAt ? (
+            <p className="col-span-2 rounded-2xl bg-mint-100 p-2.5 text-center text-sm font-bold text-forest-800" data-testid="arrived-done">
+              Customer told you’ve arrived
+            </p>
+          ) : (
+            <div className="col-span-2">
+              <Button block variant="lime" icon={<MapPinCheck className="size-5" />} loading={arrived.isPending} onClick={() => arrived.mutate()}>
+                I’ve arrived
+              </Button>
+              <p className="mt-1 text-center text-xs text-charcoal-500">
+                {order.customer.pinned ? 'Tells the customer. Happens by itself within 80 m of their pinned door.' : 'Tells the customer you’re at their door.'}
+              </p>
+            </div>
+          ))}
         {step === 'OUT_FOR_DELIVERY' && (
           <Button className="col-span-2" size="lg" icon={<KeyRound className="size-5" />} disabled={order.delivery.otpLocked} onClick={() => onSheet({ order, kind: 'otp' })}>
             {order.delivery.otpLocked ? 'Code locked · call the store' : 'Deliver with code'}
@@ -737,6 +761,8 @@ export default function RiderApp() {
       </header>
 
       <main className="mx-auto max-w-lg px-4 pt-4">
+        {approved && <NewBookingAlert online={me.data?.isOnline ?? false} />}
+        {approved && <PushPrompt className="mb-4" text="Get new bookings on your phone with a ring, even when this app is closed or your screen is off." />}
         {me.isLoading ? (
           <div className="grid min-h-[40vh] place-items-center text-leaf-600">
             <Spinner className="size-8" />

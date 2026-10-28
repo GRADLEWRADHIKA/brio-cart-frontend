@@ -166,6 +166,9 @@ export interface Address {
   house: string;
   street: string;
   landmark: string | null;
+  /** Pinned door location, if the customer pinned one. */
+  lat?: number | null;
+  lng?: number | null;
   isDefault: boolean;
   area: { name: string; isActive: boolean };
 }
@@ -186,8 +189,12 @@ export interface Order {
     street: string;
     landmark: string | null;
     instructions: string | null;
+    /** The customer pinned their door; the rider is marked arrived automatically within 80 m. */
+    pinned?: boolean;
   };
   deliverySlot: string | null;
+  /** YYYY-MM-DD for a booked standard slot; null otherwise. */
+  deliveryDate?: string | null;
   paymentMethod: PaymentMethod;
   paymentMethodLabel: string;
   paymentStatus: string;
@@ -218,6 +225,8 @@ export interface Order {
     otpExpiresAt: string | null;
     otpLocked: boolean;
     deliveredAt: string | null;
+    /** When the rider reached the door, while the order is out for delivery. */
+    arrivedAt?: string | null;
     /** Rider views only (paise). */
     payout?: number | null;
   };

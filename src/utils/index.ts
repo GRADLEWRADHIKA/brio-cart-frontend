@@ -67,6 +67,7 @@ const EVENT_LABELS: Record<string, string> = {
   DELIVERY_FAILED: 'Delivery failed',
   ADDRESS_CHANGED: 'Address changed',
   OTP_RESET: 'New delivery code',
+  RIDER_ARRIVED: 'Rider arrived',
   READY_FOR_PICKUP: 'Ready for pickup',
   PICKUP_CODE_RESET: 'New pickup code',
   OFFERED: 'Offered to nearest rider',
