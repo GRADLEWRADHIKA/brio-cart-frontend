@@ -27,6 +27,8 @@ export interface MyShop {
   serviceStates: string[];
   /** Pickup point pinned on the map; riders near it are offered orders first. Null = area centre. */
   location: { lat: number; lng: number } | null;
+  /** The shop's own delivery timings, offered to customers alongside the standard slots. */
+  deliverySlots: string[];
   createdAt: string;
 }
 
@@ -81,6 +83,7 @@ export const shopApi = {
   saveProfile: (d: ShopProfilePayload) => api.put<{ shop: MyShop }>('/shop/me', d).then((r) => r.shop),
   setSelling: (d: { serviceScope: ServiceScope; serviceStates: string[] }) => api.put<{ shop: MyShop }>('/shop/me/selling', d).then((r) => r.shop),
   setOpen: (isOpen: boolean) => api.patch<{ shop: MyShop }>('/shop/me/open', { isOpen }).then((r) => r.shop),
+  setDeliverySlots: (slots: string[]) => api.put<{ shop: MyShop }>('/shop/me/delivery-slots', { slots }).then((r) => r.shop),
   setLocation: (location: { lat: number; lng: number } | null) => api.put<{ shop: MyShop }>('/shop/me/location', { location }).then((r) => r.shop),
   summary: () => api.get<ShopSummary>('/shop/summary'),
   earnings: () => api.get<ShopEarnings & { commissionPercent: number }>('/shop/earnings'),

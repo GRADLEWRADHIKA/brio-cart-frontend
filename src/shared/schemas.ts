@@ -55,6 +55,11 @@ export const checkoutSchema = z.object({
   /** Admin-defined slot booking; required when the store has defined slots. */
   deliverySlotId: optionalText(40),
   deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Choose a delivery date').optional(),
+  /**
+   * Shop id → one of that shop's own delivery timings, for the shop's order in this checkout.
+   * Shops left out get the standard slot chosen above.
+   */
+  shopSlots: z.record(z.string().max(40), z.string().trim().min(1).max(60)).optional(),
   paymentMethod: z.enum(PAYMENT_METHODS),
   items: z.array(cartLineSchema).min(1, 'Your cart is empty').max(60),
   couponCode: optionalText(30),

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { ProductImage } from '@/components/ui/misc';
 import { SellingArea } from '@/components/seller/SellingArea';
 import { PickupLocation } from '@/components/seller/PickupLocation';
+import { DeliveryTimings } from '@/components/seller/DeliveryTimings';
 
 type FormValues = Omit<ShopProfilePayload, 'description' | 'imageUrl' | 'prepMinutes'> & { description: string; imageUrl: string; prepMinutes: string };
 
@@ -75,6 +76,7 @@ export default function SellerSettings() {
       </Card>
       <SellingArea shop={shop} />
       <PickupLocation shop={shop} />
+      <DeliveryTimings shop={shop} />
       <form onSubmit={handleSubmit((v) => save.mutate(v))} noValidate>
         <Card title="Shop details">
           <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">

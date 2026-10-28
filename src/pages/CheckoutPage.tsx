@@ -4,7 +4,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
-import { AlertCircle, Banknote, CreditCard, Lock, MapPin, QrCode, ShoppingBasket, Sunrise, Tag, X } from 'lucide-react';
+import { AlertCircle, Banknote, Clock3, CreditCard, Lock, MapPin, QrCode, ShoppingBasket, Sunrise, Tag, X } from 'lucide-react';
 import { addressFields, computeSplitTotals, formatINR, hasPermission, INDIAN_STATES, type PaymentMethod } from '@shared';
 import { accountApi, catalogApi, orderApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
@@ -126,7 +126,14 @@ export default function CheckoutPage() {
   const credit = wallet.data?.balance ?? 0;
   const [useCredit, setUseCredit] = useState(false);
   const bookedLabel = booking && slotDays.data?.find((d) => d.date === booking.date)?.slots.find((x) => x.id === booking.slotId)?.label;
-  const slotText = bookable ? (bookedLabel && booking ? `${bookedLabel} on ${booking.date}` : '') : deliverySlot;
+  const standardText = bookable ? (bookedLabel && booking ? `${bookedLabel} on ${booking.date}` : '') : deliverySlot;
+  // Shops with their own delivery timings: the customer picks a standard slot or one of the shop's.
+  const [shopSlots, setShopSlots] = useState<Record<string, string>>({});
+  const timedShops = courier ? [] : (validation.result?.groups ?? []).flatMap((g) => (g.shop?.deliverySlots?.length ? [{ id: g.shop.id, name: g.shop.name, slots: g.shop.deliverySlots }] : []));
+  const ownTimings = timedShops.flatMap((s) => (shopSlots[s.id] && s.slots.includes(shopSlots[s.id]!) ? [{ ...s, label: shopSlots[s.id]! }] : []));
+  /** A standard slot is still needed for any order not on a shop's own timing. */
+  const needsStandard = ownTimings.length < (validation.result?.groups?.length ?? Infinity);
+  const slotText = [needsStandard ? standardText : '', ...ownTimings.map((t) => `${t.name}: ${t.label}`)].filter(Boolean).join('; ');
   // Cart and checkout totals follow the chosen area's fee rules.
   const setPrefArea = prefs.setArea;
   useEffect(() => {
@@ -206,6 +213,7 @@ export default function CheckoutPage() {
       deliverySlot: courier || bookable ? undefined : v.deliverySlot || undefined,
       deliverySlotId: !courier && bookable ? booking?.slotId : undefined,
       deliveryDate: !courier && bookable ? booking?.date : undefined,
+      shopSlots: ownTimings.length ? Object.fromEntries(ownTimings.map((t) => [t.id, t.label])) : undefined,
       shipTo: courier ? { state: ship.state, city: ship.city.trim(), pincode: ship.pincode.trim() } : undefined,
       paymentMethod: v.paymentMethod,
       items,
@@ -218,7 +226,7 @@ export default function CheckoutPage() {
       setServerError(shipOk ? 'Some items can’t be shipped to that state. Remove them from your cart first.' : 'Enter the state, city and PIN code for courier delivery.');
       return;
     }
-    if (!courier && bookable && !booking) {
+    if (!courier && bookable && !booking && needsStandard) {
       setServerError('Please choose a delivery slot.');
       return;
     }
@@ -403,6 +411,30 @@ export default function CheckoutPage() {
               </div>
             </section>
           )}
+
+          {timedShops.map((s) => {
+            const chosen = s.slots.includes(shopSlots[s.id] ?? '') ? shopSlots[s.id]! : '';
+            const options = [{ value: '', title: 'Standard slot', sub: standardText || 'The delivery slot you choose above' }, ...s.slots.map((x) => ({ value: x, title: `${s.name}’s timing`, sub: x }))];
+            return (
+              <section key={s.id} className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby={`shop-slot-${s.id}`}>
+                <h2 id={`shop-slot-${s.id}`} className="flex items-center gap-2 font-display text-2xl font-semibold text-forest-900">
+                  <Clock3 className="size-5 text-marigold-500" /> Delivery time for {s.name}
+                </h2>
+                <p className="mt-1 text-sm text-charcoal-500">{s.name} also delivers at its own times. Pick the standard slot or one of the shop’s timings for its items.</p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label={`Delivery time for ${s.name}`}>
+                  {options.map((o) => (
+                    <label key={o.value || 'standard'} className={cn('flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-4 transition', chosen === o.value ? 'border-forest-700 bg-mint-50' : 'border-line hover:border-forest-700/40')}>
+                      <input type="radio" name={`shop-slot-${s.id}`} checked={chosen === o.value} onChange={() => setShopSlots((m) => ({ ...m, [s.id]: o.value }))} className="size-4 accent-forest-700" />
+                      <span>
+                        <span className="block font-bold">{o.title}</span>
+                        <span className="text-sm text-charcoal-500">{o.sub}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
 
           <section className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby="pay-h">
             <h2 id="pay-h" className="font-display text-2xl font-semibold text-forest-900">Payment</h2>

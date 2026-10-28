@@ -139,7 +139,8 @@ export interface CartValidation {
   issues: Array<{ variantId: string; code: 'NOT_FOUND' | 'UNAVAILABLE' | 'QUANTITY_LIMIT'; message: string; maxQty?: number }>;
   totals: OrderTotals;
   /** One entry per order the checkout will create (Brio Cart's items, then each shop's). */
-  groups?: Array<{ shop: { id: string; name: string } | null; variantIds: string[]; totals: OrderTotals }>;
+  /** `deliverySlots`: the shop's own timings, which the customer can pick instead of a standard slot. */
+  groups?: Array<{ shop: { id: string; name: string; deliverySlots?: string[] } | null; variantIds: string[]; totals: OrderTotals }>;
   coupon: { code: string; discount: number } | null;
   couponError: string | null;
   minOrderAmount: number;
