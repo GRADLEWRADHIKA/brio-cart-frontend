@@ -70,6 +70,7 @@ export function Header() {
   const { user } = useAuth();
   const { data: categories } = useCategories();
   const { menuOpen, setMenuOpen, setSearchOpen } = useUi();
+  // Phones open the menu from the bottom tab bar; wider screens get the category row below.
   const [scrolled, setScrolled] = useState(false);
   const loc = useLocation();
 
@@ -86,9 +87,6 @@ export function Header() {
       <AnnouncementBar />
       <header className={cn('sticky top-[env(safe-area-inset-top)] z-50 border-b transition-all duration-300', scrolled ? 'border-line bg-ivory-50/85 shadow-soft backdrop-blur-xl' : 'border-transparent bg-ivory-50')}>
         <div className="container-page flex h-[4.5rem] items-center gap-3 lg:gap-6">
-          <button type="button" className="grid size-11 place-items-center rounded-full hover:bg-ivory-200 lg:hidden" onClick={() => setMenuOpen(true)} aria-label="Open menu">
-            <Menu className="size-6" />
-          </button>
           <Link to="/" aria-label="Brio Cart home" className="shrink-0">
             <Logo />
           </Link>
@@ -111,8 +109,8 @@ export function Header() {
             <CartButton />
           </div>
         </div>
-        <nav aria-label="Categories" className="hidden border-t border-line/60 lg:block">
-          <ul className="container-page flex h-12 items-center gap-1 text-sm font-bold text-charcoal-700">
+        <nav aria-label="Categories" className="hidden border-t border-line/60 md:block">
+          <ul className="no-scrollbar container-page flex h-12 items-center gap-1 overflow-x-auto whitespace-nowrap text-sm font-bold text-charcoal-700">
             <li>
               <NavLink to="/shop" end className={({ isActive }) => cn('rounded-full px-3.5 py-2 transition hover:bg-mint-100 hover:text-forest-800', isActive && !loc.search && 'bg-mint-100 text-forest-800')}>
                 All groceries
@@ -168,11 +166,14 @@ function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data: categories } = useCategories();
   const { whatsapp, phoneDisplay } = useContact();
   return (
-    <div className={cn('fixed inset-0 z-[75] lg:hidden', !open && 'pointer-events-none')} aria-hidden={!open} inert={!open}>
+    <div className={cn('fixed inset-0 z-[75] md:hidden', !open && 'pointer-events-none')} aria-hidden={!open} inert={!open}>
       <div className={cn('absolute inset-0 bg-forest-950/40 transition-opacity', open ? 'opacity-100' : 'opacity-0')} onClick={onClose} />
       <nav
         aria-label="Main menu"
-        className={cn('safe-top absolute inset-y-0 left-0 flex w-[86%] max-w-sm flex-col bg-forest-900 text-ivory-50 transition-transform duration-500 ease-out-expo grain', open ? 'translate-x-0' : '-translate-x-full')}
+        className={cn(
+          'safe-bottom absolute inset-x-0 bottom-0 flex max-h-[85dvh] flex-col rounded-t-[2rem] bg-forest-900 text-ivory-50 transition-transform duration-500 ease-out-expo grain',
+          open ? 'translate-y-0' : 'translate-y-full',
+        )}
       >
         <div className="relative z-10 flex items-center justify-between p-5">
           <Logo tone="ivory" />
@@ -221,8 +222,8 @@ export function MobileTabBar() {
   const count = useCart(selectCount);
   const { user } = useAuth();
   const setCartOpen = useUi((s) => s.setCartOpen);
-  const setSearchOpen = useUi((s) => s.setSearchOpen);
-  const item = 'flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[0.68rem] font-bold transition';
+  const { menuOpen, setMenuOpen } = useUi();
+  const item ='flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[0.68rem] font-bold transition';
   const tab = ({ isActive }: { isActive: boolean }) => cn(item, isActive ? 'text-forest-800' : 'text-charcoal-400');
   return (
     <nav aria-label="Quick navigation" className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-ivory-50/95 backdrop-blur-xl md:hidden">
@@ -233,8 +234,8 @@ export function MobileTabBar() {
         <NavLink to="/shop" className={tab}>
           <LayoutGrid className="size-[1.35rem]" /> Shop
         </NavLink>
-        <button type="button" onClick={() => setSearchOpen(true)} className={cn(item, 'text-charcoal-400')}>
-          <Search className="size-[1.35rem]" /> Search
+        <button type="button" onClick={() => setMenuOpen(!menuOpen)} className={cn(item, menuOpen ? 'text-forest-800' : 'text-charcoal-400')} aria-expanded={menuOpen} aria-label="Open menu">
+          <Menu className="size-[1.35rem]" /> Menu
         </button>
         <button type="button" onClick={() => setCartOpen(true)} className={cn(item, 'relative text-charcoal-400')}>
           <span className="relative">
