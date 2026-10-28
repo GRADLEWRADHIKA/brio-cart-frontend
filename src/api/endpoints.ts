@@ -100,8 +100,10 @@ export const riderApi = {
   setOnline: (online: boolean) => api.patch<{ online: boolean }>('/rider/status', { online }).then((r) => r.online),
   orders: () => api.get<{ items: Order[] }>('/rider/orders').then((r) => r.items),
   history: (page = 1) => api.get<{ items: Order[]; total: number; page: number; totalPages: number }>('/rider/orders/history', { page }),
-  available: () => api.get<{ items: AvailableOrder[]; online: boolean }>('/rider/orders/available'),
+  available: () => api.get<{ items: AvailableOrder[]; online: boolean; locationKnown?: boolean; offerSeconds?: number }>('/rider/orders/available'),
   claim: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/claim`).then((r) => r.order),
+  /** Pass an order offered to this rider on to the next nearest one. */
+  decline: (id: string) => api.post<{ ok: true }>(`/rider/orders/${id}/decline`),
   accept: (id: string) => api.post<{ order: Order }>(`/rider/orders/${id}/accept`).then((r) => r.order),
   reject: (id: string, reason?: string) => api.post<{ ok: true }>(`/rider/orders/${id}/reject`, { reason }),
   /** Shop orders need the shop's pickup code; Brio Cart's own don't. */

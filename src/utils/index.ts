@@ -69,6 +69,10 @@ const EVENT_LABELS: Record<string, string> = {
   OTP_RESET: 'New delivery code',
   READY_FOR_PICKUP: 'Ready for pickup',
   PICKUP_CODE_RESET: 'New pickup code',
+  OFFERED: 'Offered to nearest rider',
+  OFFER_DECLINED: 'Rider declined offer',
+  OFFER_EXPIRED: 'Offer not answered',
+  DISPATCH_OPEN: 'Open to all riders',
 };
 
 /** Label for an order timeline event (store statuses and rider steps). */

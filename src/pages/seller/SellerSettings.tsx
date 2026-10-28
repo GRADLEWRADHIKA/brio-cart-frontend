@@ -10,6 +10,7 @@ import { SelectField, TextAreaField, TextField } from '@/components/forms/Field'
 import { Button } from '@/components/ui/Button';
 import { ProductImage } from '@/components/ui/misc';
 import { SellingArea } from '@/components/seller/SellingArea';
+import { PickupLocation } from '@/components/seller/PickupLocation';
 
 type FormValues = Omit<ShopProfilePayload, 'description' | 'imageUrl' | 'prepMinutes'> & { description: string; imageUrl: string; prepMinutes: string };
 
@@ -73,6 +74,7 @@ export default function SellerSettings() {
         <p className="mt-3 text-sm text-charcoal-500">Brio Cart keeps {shop.commissionPercent}% of your item sales as commission{shop.hasOwnCommission ? ' (your shop’s own rate)' : ''}.</p>
       </Card>
       <SellingArea shop={shop} />
+      <PickupLocation shop={shop} />
       <form onSubmit={handleSubmit((v) => save.mutate(v))} noValidate>
         <Card title="Shop details">
           <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">

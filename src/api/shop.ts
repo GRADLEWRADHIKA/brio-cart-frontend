@@ -25,6 +25,8 @@ export interface MyShop {
   /** Where the shop sells: LOCAL, chosen STATES or all of INDIA (outside the city by courier). */
   serviceScope: ServiceScope;
   serviceStates: string[];
+  /** Pickup point pinned on the map; riders near it are offered orders first. Null = area centre. */
+  location: { lat: number; lng: number } | null;
   createdAt: string;
 }
 
@@ -79,6 +81,7 @@ export const shopApi = {
   saveProfile: (d: ShopProfilePayload) => api.put<{ shop: MyShop }>('/shop/me', d).then((r) => r.shop),
   setSelling: (d: { serviceScope: ServiceScope; serviceStates: string[] }) => api.put<{ shop: MyShop }>('/shop/me/selling', d).then((r) => r.shop),
   setOpen: (isOpen: boolean) => api.patch<{ shop: MyShop }>('/shop/me/open', { isOpen }).then((r) => r.shop),
+  setLocation: (location: { lat: number; lng: number } | null) => api.put<{ shop: MyShop }>('/shop/me/location', { location }).then((r) => r.shop),
   summary: () => api.get<ShopSummary>('/shop/summary'),
   earnings: () => api.get<ShopEarnings & { commissionPercent: number }>('/shop/earnings'),
   dailySummary: (date?: string) => api.get<DailySummary>('/shop/reports/daily', { date }),

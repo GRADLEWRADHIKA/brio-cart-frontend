@@ -40,6 +40,10 @@ export interface AvailableOrder {
   createdAt: string;
   /** Where to collect a shop order; null for Brio Cart's own. */
   pickup: { shopName: string; address: string; areaName: string | null; ready: boolean } | null;
+  /** Straight-line km from the rider's last location to the pickup point; null when unknown. */
+  distanceKm: number | null;
+  /** Offered to this rider alone (nearest-rider dispatch) until `expiresAt`. */
+  offer: { expiresAt: string } | null;
 }
 
 export interface ProductPage {

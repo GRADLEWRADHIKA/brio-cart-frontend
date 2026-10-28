@@ -77,6 +77,10 @@ export interface AdminSettings {
   lowStockThreshold: number;
   orderConfirmTimeoutMinutes: number;
   riderAcceptTimeoutMinutes: number;
+  /** Seconds the nearest rider has to accept an offer. 0 = off. */
+  dispatchOfferSeconds: number;
+  dispatchRadiusKm: number;
+  dispatchMaxOffers: number;
   gstin: string | null;
   storeAddress: string | null;
   gstRatePercent: number;

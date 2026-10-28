@@ -15,10 +15,18 @@ import { VerificationPanel } from '@/components/verification/VerificationPanel';
 import { cn, formatDate, openExternal } from '@/utils';
 import { CashTab } from './CashTab';
 
-/** Shares the rider's GPS (browser geolocation) while enabled; the server applies it to orders they are delivering. */
-function useLiveLocation(enabled: boolean) {
+/** A stationary phone may report no new fix for minutes; resend the last one so the rider stays "nearby". */
+const HEARTBEAT_MS = 60_000;
+
+/**
+ * Shares the rider's GPS (browser geolocation) while enabled: the server offers orders to the nearest
+ * rider, and applies it to orders they are delivering. Uploads at most every `minGapMs`.
+ */
+function useLiveLocation(enabled: boolean, minGapMs: number) {
   const [state, setState] = useState<{ status: 'off' | 'waiting' | 'live' | 'error'; accuracy?: number; sentAt?: Date; message?: string }>({ status: 'off' });
   const last = useRef(0);
+  const gap = useRef(minGapMs);
+  gap.current = minGapMs;
   useEffect(() => {
     if (!enabled) {
       setState({ status: 'off' });
@@ -29,20 +37,29 @@ function useLiveLocation(enabled: boolean) {
       return;
     }
     setState({ status: 'waiting' });
+    let latest: GeolocationCoordinates | null = null;
+    const send = (c: GeolocationCoordinates) => {
+      last.current = Date.now();
+      riderApi
+        .location(c.latitude, c.longitude, c.accuracy)
+        .then(() => setState({ status: 'live', accuracy: c.accuracy, sentAt: new Date() }))
+        .catch((e) => setState({ status: 'error', message: (e as Error).message }));
+    };
     const id = navigator.geolocation.watchPosition(
       (pos) => {
-        const now = Date.now();
-        if (now - last.current < 5000) return; // throttle uploads
-        last.current = now;
-        riderApi
-          .location(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy)
-          .then(() => setState({ status: 'live', accuracy: pos.coords.accuracy, sentAt: new Date() }))
-          .catch((e) => setState({ status: 'error', message: (e as Error).message }));
+        latest = pos.coords;
+        if (Date.now() - last.current >= gap.current) send(pos.coords); // throttle uploads
       },
-      (err) => setState({ status: 'error', message: err.code === err.PERMISSION_DENIED ? 'Location permission denied. Allow location access to share live tracking.' : err.message }),
+      (err) => setState({ status: 'error', message: err.code === err.PERMISSION_DENIED ? 'Location permission denied. Allow location access to get nearby orders and share live tracking.' : err.message }),
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
     );
-    return () => navigator.geolocation.clearWatch(id);
+    const beat = setInterval(() => {
+      if (latest && Date.now() - last.current >= HEARTBEAT_MS) send(latest);
+    }, HEARTBEAT_MS / 2);
+    return () => {
+      navigator.geolocation.clearWatch(id);
+      clearInterval(beat);
+    };
   }, [enabled]);
   return state;
 }
@@ -340,7 +357,7 @@ function OnlineToggle({ online, onChange, pending, loc, onRoad }: { online: bool
         <span className="block font-extrabold">{online ? 'Online · available for orders' : 'Offline'}</span>
         <span className="block text-xs opacity-75">
           {!online
-            ? 'Go online to receive deliveries'
+            ? 'Go online to receive deliveries. Your location is shared only while you are online.'
             : loc.status === 'live'
               ? `Sharing live location · GPS ±${Math.round(loc.accuracy ?? 0)} m · ${loc.sentAt?.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`
               : loc.status === 'waiting'
@@ -348,50 +365,117 @@ function OnlineToggle({ online, onChange, pending, loc, onRoad }: { online: bool
                 : loc.status === 'error'
                   ? loc.message
                   : onRoad
-                    ? 'Location is shared while you deliver'
-                    : 'Customers see your location only while you deliver'}
+                    ? 'Customers see your location while you deliver'
+                    : 'Nearby orders are offered to you first'}
         </span>
       </span>
     </button>
   );
 }
 
-function AvailableOrders({ online }: { online: boolean }) {
+/** Seconds left until `iso`, ticking every second. */
+function useSecondsLeft(iso: string) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return Math.max(0, Math.ceil((new Date(iso).getTime() - now) / 1000));
+}
+
+const distanceLabel = (d: number | null | undefined) => (d == null ? null :d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`);
+
+function OrderSummary({ o }: { o: AvailableOrder }) {
+  const distance = distanceLabel(o.distanceKm);
+  return (
+    <div className="min-w-0 flex-1">
+      <p className="flex items-baseline justify-between gap-2">
+        <span className="truncate font-mono text-sm font-bold">{o.orderNumber}</span>
+        {distance && <span className="shrink-0 rounded-full bg-mint-100 px-2 py-0.5 text-xs font-extrabold text-forest-800">{distance} away</span>}
+      </p>
+      <p className="truncate text-sm text-charcoal-500">
+        <MapPin className="mr-1 inline size-3.5" />
+        {o.areaName} · {o.itemCount} item{o.itemCount === 1 ? '' : 's'} · {formatINR(o.total)}
+        {o.paymentMethod === 'COD' ? ' · Cash' : ''}
+      </p>
+      {(o.deliverySlot || o.deliveryDate) && <p className="text-xs text-charcoal-400">{[o.deliveryDate, o.deliverySlot].filter(Boolean).join(' · ')}</p>}
+      {o.pickup && (
+        <p className="mt-1 truncate text-xs font-bold text-forest-700">
+          Pick up at {o.pickup.shopName}{o.pickup.areaName ? ` (${o.pickup.areaName})` : ''} · {o.pickup.ready ? 'packed and ready' : 'being packed'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** An order offered to this rider alone, with the time left before it passes to the next nearest. */
+function OfferCard({ o, total, onDone }: { o: AvailableOrder; total: number; onDone: () => void }) {
+  const left = useSecondsLeft(o.offer!.expiresAt);
+  const accept = useMutation({ mutationFn: () => riderApi.claim(o.id), onSettled: onDone });
+  const decline = useMutation({ mutationFn: () => riderApi.decline(o.id), onSettled: onDone });
+  const expired = left === 0;
+  useEffect(() => {
+    if (expired) onDone();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expired]);
+  const error = accept.error ?? decline.error;
+  return (
+    <article className="rounded-[1.5rem] bg-white p-4 shadow-soft ring-2 ring-lime-300" data-testid="rider-offer">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="rounded-full bg-lime-300 px-2.5 py-1 text-[0.68rem] font-extrabold uppercase text-forest-900">Offered to you</span>
+        <span className="inline-flex items-center gap-1 font-mono text-sm font-extrabold tabular-nums text-forest-800" aria-live="polite">
+          <Clock className="size-3.5" />
+          {expired ? 'Passed on' : `${left}s`}
+        </span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-ivory-200" aria-hidden>
+        <div className="h-full rounded-full bg-forest-700 transition-[width] duration-1000 ease-linear" style={{ width: `${total > 0 ? Math.min(100, (left / total) * 100) : 0}%` }} />
+      </div>
+      <div className="mt-3 flex items-center gap-3">
+        <OrderSummary o={o} />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Button variant="outline" className="text-tomato-500" icon={<Ban className="size-4" />} disabled={expired || accept.isPending} loading={decline.isPending} onClick={() => decline.mutate()}>
+          Decline
+        </Button>
+        <Button icon={<CheckCircle2 className="size-4" />} disabled={expired || decline.isPending} loading={accept.isPending} onClick={() => accept.mutate()}>
+          Accept
+        </Button>
+      </div>
+      {error && <p className="mt-2 text-sm font-semibold text-tomato-500">{(error as Error).message}</p>}
+    </article>
+  );
+}
+
+function AvailableOrders({ online, loc }: { online: boolean; loc: ReturnType<typeof useLiveLocation> }) {
   const qc = useQueryClient();
-  const { data, error } = useQuery({ queryKey: ['rider', 'available'], queryFn: riderApi.available, enabled: online, refetchInterval: online ? 15_000 : false });
-  const claim = useMutation({
-    mutationFn: riderApi.claim,
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['rider', 'available'] });
-      qc.invalidateQueries({ queryKey: ['rider', 'orders'] });
-    },
-  });
+  const { data, error } = useQuery({ queryKey: ['rider', 'available'], queryFn: riderApi.available, enabled: online, refetchInterval: online ? 10_000 : false });
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: ['rider', 'available'] });
+    void qc.invalidateQueries({ queryKey: ['rider', 'orders'] });
+  };
+  const claim = useMutation({ mutationFn: riderApi.claim, onSettled: refresh });
   if (!online) return null;
   const items: AvailableOrder[] = data?.items ?? [];
+  const offers = items.filter((o) => o.offer);
+  const open = items.filter((o) => !o.offer);
   return (
     <section className="mt-4 space-y-3" aria-labelledby="available-h">
       <h2 id="available-h" className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-charcoal-500">
         <PackageCheck className="size-4" /> Available to pick up
       </h2>
+      {data && !data.locationKnown && loc.status !== 'live' && (
+        <p className="rounded-2xl bg-turmeric-100 p-3 text-sm text-[#6b4500]">Turn on location to be offered orders near you first. You can still take open orders below.</p>
+      )}
       {error && <p className="rounded-2xl bg-tomato-100 p-4 text-sm font-semibold text-tomato-500">{error instanceof ApiError ? error.message : 'Could not load orders'}</p>}
       {claim.error && <p className="rounded-2xl bg-tomato-100 p-4 text-sm font-semibold text-tomato-500">{(claim.error as Error).message}</p>}
+      {offers.map((o) => (
+        <OfferCard key={o.id} o={o} total={data?.offerSeconds ?? 45} onDone={refresh} />
+      ))}
       {data && items.length === 0 && <p className="rounded-[1.5rem] bg-white p-6 text-center text-sm text-charcoal-500 shadow-soft">No orders waiting right now.</p>}
-      {items.map((o) => (
+      {open.map((o) => (
         <article key={o.id} className="flex items-center gap-3 rounded-[1.5rem] bg-white p-4 shadow-soft">
-          <div className="min-w-0 flex-1">
-            <p className="font-mono text-sm font-bold">{o.orderNumber}</p>
-            <p className="truncate text-sm text-charcoal-500">
-              <MapPin className="mr-1 inline size-3.5" />
-              {o.areaName} · {o.itemCount} item{o.itemCount === 1 ? '' : 's'} · {formatINR(o.total)}
-              {o.paymentMethod === 'COD' ? ' · Cash' : ''}
-            </p>
-            {(o.deliverySlot || o.deliveryDate) && <p className="text-xs text-charcoal-400">{[o.deliveryDate, o.deliverySlot].filter(Boolean).join(' · ')}</p>}
-            {o.pickup && (
-              <p className="mt-1 truncate text-xs font-bold text-forest-700">
-                Pick up at {o.pickup.shopName}{o.pickup.areaName ? ` (${o.pickup.areaName})` : ''} · {o.pickup.ready ? 'packed and ready' : 'being packed'}
-              </p>
-            )}
-          </div>
+          <OrderSummary o={o} />
           <Button size="sm" disabled={claim.isPending} onClick={() => claim.mutate(o.id)}>
             Take order
           </Button>
@@ -409,8 +493,8 @@ function Deliveries() {
   const setOnline = useMutation({ mutationFn: riderApi.setOnline, onSuccess: () => qc.invalidateQueries({ queryKey: ['rider', 'me'] }) });
   const online = me.data?.isOnline ?? false;
   const onRoad = !!data?.some((o) => o.delivery.status === 'OUT_FOR_DELIVERY');
-  // Reuses the live-tracking GPS upload: only while online and on a trip.
-  const loc = useLiveLocation(online && onRoad);
+  // Shared while online: every 30 s for nearby offers, every 5 s on a trip for customer tracking.
+  const loc = useLiveLocation(online, onRoad ? 5000 : 30_000);
 
   const current = data?.filter((o) => o.delivery.status === 'PICKED_UP' || o.delivery.status === 'OUT_FOR_DELIVERY') ?? [];
   const assigned = data?.filter((o) => o.delivery.status === 'ASSIGNED' || o.delivery.status === 'ACCEPTED') ?? [];
@@ -445,7 +529,7 @@ function Deliveries() {
           ))}
         </section>
       )}
-      <AvailableOrders online={online} />
+      <AvailableOrders online={online} loc={loc} />
       <section className="mt-4 space-y-3" aria-labelledby="assigned-h">
         <h2 id="assigned-h" className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-charcoal-500">
           <Package className="size-4" /> Assigned to you
