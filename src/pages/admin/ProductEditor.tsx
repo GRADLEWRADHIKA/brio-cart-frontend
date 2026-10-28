@@ -94,7 +94,7 @@ export default function ProductEditor() {
     },
     onSuccess: (p) => {
       void qc.invalidateQueries({ queryKey: [scope.key, 'products'] });
-      qc.setQueryData(['admin', 'product', p.id], p);
+      qc.setQueryData([scope.key, 'product', p.id], p);
       if (isNew) navigate(`${scope.base}/products/${p.id}`, { replace: true });
     },
     onError: (e) => {
@@ -104,7 +104,7 @@ export default function ProductEditor() {
   });
   /** Soft delete: hidden from the store and this list, kept in past orders. */
   const remove = useMutation({
-    mutationFn: () => scope.api.deleteProduct(id!),
+    mutationFn: (reason?: string) => scope.api.deleteProduct(id!, reason),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: [scope.key, 'products'] });
       navigate(`${scope.base}/products`);
@@ -119,6 +119,14 @@ export default function ProductEditor() {
     onError: (e) => setUploadError((e as Error).message),
   });
 
+  const confirmDelete = () => {
+    if (!scope.moderation) return window.confirm('Delete this product? It disappears from the store but stays in past orders.') && remove.mutate(undefined);
+    const reason = window.prompt(`Delete this product from ${scope.owner ?? 'the shop'}? It disappears from the store but stays in past orders. The shop is told.
+
+Reason (shown to the shop):`);
+    if (reason !== null) remove.mutate(reason.trim() || undefined);
+  };
+
   if (!isNew && isLoading) return <div className="skeleton h-96 rounded-3xl" />;
   const imageUrl = watch('imageUrl');
   const e = formState.errors;
@@ -128,11 +136,16 @@ export default function ProductEditor() {
       <Link to={`${scope.base}/products`} className="mb-3 inline-flex items-center gap-1 text-sm font-bold text-forest-700"><ArrowLeft className="size-4" /> Products</Link>
       <PageHeader
         title={isNew ? 'New product' : (product?.name ?? 'Edit product')}
-        subtitle={!isNew && product ? <a href={`/product/${product.slug}`} target="_blank" rel="noreferrer" className="underline">View in store</a> : 'Prices are entered in rupees.'}
+        subtitle={
+          <>
+            {scope.owner && <>Listed by {scope.owner} · </>}
+            {!isNew && product ? <a href={`/product/${product.slug}`} target="_blank" rel="noreferrer" className="underline">View in store</a> : 'Prices are entered in rupees.'}
+          </>
+        }
         actions={
           <>
             {!isNew && product && scope.can('delete') && (
-              <Button variant="outline" className="text-tomato-500" loading={remove.isPending} onClick={() => window.confirm('Delete this product? It disappears from the store but stays in past orders.') && remove.mutate()}>
+              <Button variant="outline" className="text-tomato-500" loading={remove.isPending} onClick={confirmDelete}>
                 Delete
               </Button>
             )}
@@ -140,6 +153,13 @@ export default function ProductEditor() {
           </>
         }
       />
+      {scope.moderation && <p className="mb-4 rounded-2xl bg-ivory-100 p-3 text-sm font-semibold text-charcoal-700">You’re editing {scope.owner ?? 'a shop'}’s listing. The shop is notified when you save or delete it.</p>}
+      {product?.staffHidden && (
+        <p className="mb-4 rounded-2xl bg-tomato-100 p-3 text-sm font-semibold text-tomato-500" role="status">
+          Hidden by Brio Cart{product.staffHiddenReason ? `: ${product.staffHiddenReason}` : ''}.{' '}
+          {scope.moderation ? 'Unhide it from the products list to put it back on sale.' : 'You can still edit it, but it stays off the store until Brio Cart makes it visible again. Contact support if you think this is a mistake.'}
+        </p>
+      )}
       {remove.error && <p className="mb-4 rounded-2xl bg-tomato-100 p-3 text-sm font-semibold text-tomato-500" role="alert">{(remove.error as Error).message}</p>}
       {save.error && <p className="mb-4 rounded-2xl bg-tomato-100 p-3 text-sm font-semibold text-tomato-500" role="alert">{(save.error as Error).message}</p>}
       {save.isSuccess && !formState.isDirty && <p className="mb-4 rounded-2xl bg-mint-100 p-3 text-sm font-semibold text-forest-700" role="status">Saved.</p>}
@@ -214,7 +234,12 @@ export default function ProductEditor() {
             <TextField label="…or image URL" optional placeholder="https://…" {...register('imageUrl')} className="mt-3" hint="Square photos look best. Max 5 MB." />
           </Card>
           <Card title="Visibility">
-            <Checkbox label="Visible in store" description="Turn off to archive." {...register('isActive')} />
+            <Checkbox
+              label="Visible in store"
+              description={product?.staffHidden ? 'Hidden by Brio Cart.' : 'Turn off to archive.'}
+              disabled={!!product?.staffHidden}
+              {...register('isActive')}
+            />
             <p className="mb-2 mt-5 text-sm font-extrabold text-charcoal-700">Homepage collections</p>
             <div className="space-y-2">
               {COLLECTIONS.map((c) => (

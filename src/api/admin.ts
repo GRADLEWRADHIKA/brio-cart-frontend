@@ -22,6 +22,9 @@ export interface AdminProduct extends Product {
   sortOrder: number;
   soldCount: number;
   rawImageUrl: string | null;
+  /** Shop products hidden by Brio Cart staff: the shop can edit them but not put them back on sale. */
+  staffHidden?: boolean;
+  staffHiddenReason?: string | null;
   adminVariants: AdminVariant[];
 }
 
@@ -275,6 +278,17 @@ export const adminApi = {
   shops: () => api.get<{ items: AdminShop[] }>('/admin/shops').then((r) => r.items),
   shop: (id: string) => api.get<{ shop: AdminShop; products: AdminProduct[]; earnings: ShopEarnings }>(`/admin/shops/${id}`),
   updateShop: (id: string, d: { isActive?: boolean; commissionPercent?: number | null }) => api.patch<{ shop: MyShop }>(`/admin/shops/${id}`, d).then((r) => r.shop),
+  /** One shop's products, managed by staff on the shop's behalf (the shop is notified of each change). */
+  shopProducts: (shopId: string, q: { q?: string; category?: string; archived?: string }) =>
+    api.get<{ shop: { id: string; name: string }; items: AdminProduct[] }>(`/admin/shops/${shopId}/products`, q),
+  shopProduct: (shopId: string, id: string) => api.get<{ product: AdminProduct }>(`/admin/shops/${shopId}/products/${id}`).then((r) => r.product),
+  createShopProduct: (shopId: string, p: ProductPayload) => api.post<{ product: AdminProduct }>(`/admin/shops/${shopId}/products`, p).then((r) => r.product),
+  updateShopProduct: (shopId: string, id: string, p: ProductPayload) => api.put<{ product: AdminProduct }>(`/admin/shops/${shopId}/products/${id}`, p).then((r) => r.product),
+  deleteShopProduct: (shopId: string, id: string, reason?: string) => api.delete<{ ok: true }>(`/admin/shops/${shopId}/products/${id}`, { reason }),
+  setShopProductHidden: (shopId: string, id: string, hidden: boolean, reason?: string) =>
+    api.patch<{ product: AdminProduct }>(`/admin/shops/${shopId}/products/${id}/visibility`, { hidden, reason }).then((r) => r.product),
+  patchShopVariant: (shopId: string, id: string, data: Partial<{ isAvailable: boolean; stockQty: number; trackInventory: boolean; price: number }>) =>
+    api.patch(`/admin/shops/${shopId}/variants/${id}`, data),
   recordShopPayout: (id: string, d: { amount: number; method: ShopPayoutMethod; reference?: string; note?: string }) =>
     api.post<{ earnings: ShopEarnings }>(`/admin/shops/${id}/payouts`, d).then((r) => r.earnings),
   dailySummary: (date?: string) => api.get<DailySummary>('/admin/reports/daily', { date }),

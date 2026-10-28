@@ -21,7 +21,7 @@ function ShopList() {
     <>
       <PageHeader
         title="Shops"
-        subtitle="Local shops sign up and sell without approval. They accept and prepare their own orders; you can view them, record payouts and (super admin) suspend a shop or set its commission."
+        subtitle="Local shops sign up and sell without approval. They accept and prepare their own orders; you can view them, step in on their products, record payouts and (super admin) suspend a shop or set its commission."
       />
       {error && <p className="mb-4 text-sm font-semibold text-tomato-500">{(error as Error).message}</p>}
       <Card className="overflow-hidden p-0 sm:p-0">
@@ -79,6 +79,7 @@ function ShopDetail({ id }: { id: string }) {
   const qc = useQueryClient();
   const canConfigure = usePermission('shop:configure');
   const canPay = usePermission('shop:payout');
+  const canEditProducts = usePermission('product:update');
   const { data, isLoading, error } = useQuery({ queryKey: ['admin', 'shop', id], queryFn: () => adminApi.shop(id) });
   const [commission, setCommission] = useState<string | null>(null);
   const [payout, setPayout] = useState<{ amount: string; method: ShopPayoutMethod; reference: string; note: string }>({ amount: '', method: 'UPI', reference: '', note: '' });
@@ -122,8 +123,18 @@ function ShopDetail({ id }: { id: string }) {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_22rem]">
         <div className="space-y-6">
-          <Card title={`Products (${products.length})`} className="overflow-x-auto">
-            <p className="mb-3 text-sm text-charcoal-500">Products belong to the shop; only the shop can change them.</p>
+          <Card
+            title={`Products (${products.length})`}
+            className="overflow-x-auto"
+            actions={
+              <Link to={`/admin/shops/${shop.id}/products`} className="inline-flex h-9 items-center rounded-full border border-line bg-white px-4 text-sm font-bold hover:border-forest-700">
+                Manage products
+              </Link>
+            }
+          >
+            <p className="mb-3 text-sm text-charcoal-500">
+              Products belong to the shop. You can step in: {canEditProducts ? 'edit, hide, delete or add them' : 'hide them, or fix their price and stock'}. The shop is told about every change.
+            </p>
             <table className="w-full min-w-[30rem] text-sm">
               <thead><tr><th className={th}>Product</th><th className={th}>Category</th><th className={th}>From</th><th className={th}>Listed</th></tr></thead>
               <tbody className="divide-y divide-line">
@@ -132,7 +143,7 @@ function ShopDetail({ id }: { id: string }) {
                     <td className={td}><a href={`/product/${p.slug}`} target="_blank" rel="noreferrer" className="font-bold hover:underline">{p.name}</a></td>
                     <td className={td}>{p.category.name}</td>
                     <td className={`${td} tabular-nums`}>{p.fromPrice !== null ? formatINR(p.fromPrice) : '—'}</td>
-                    <td className={td}>{p.isActive ? (p.inStock ? 'In stock' : 'Out of stock') : 'Hidden'}</td>
+                    <td className={td}>{p.staffHidden ? 'Hidden by Brio Cart' : p.isActive ? (p.inStock ? 'In stock' : 'Out of stock') : 'Hidden'}</td>
                   </tr>
                 ))}
                 {products.length === 0 && <tr><td className={td} colSpan={4}>No products yet.</td></tr>}

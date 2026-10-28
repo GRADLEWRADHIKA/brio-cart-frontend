@@ -6,12 +6,21 @@ import type { StockReason } from '@shared/core';
 
 /**
  * The product, stock and daily-summary pages are shared by the store dashboard (Brio Cart's own
- * catalogue) and the shop portal (one shop's catalogue). This scope tells them which API and which
- * links to use, and what the current user may do there.
+ * catalogue), the shop portal (one shop's catalogue) and staff managing a shop's catalogue for it.
+ * This scope tells them which API and which links to use, and what the current user may do there.
  */
 export interface CatalogScope {
-  /** Route prefix: "/admin" or "/shop". */
+  /** Route prefix: "/admin", "/seller" or "/admin/shops/<id>". */
   base: string;
+  /** Whose catalogue this is, when it isn't the current user's own (e.g. the shop's name). */
+  owner?: string;
+  /** Where the product list's back link goes, when there is one. */
+  back?: { to: string; label: string };
+  /**
+   * Staff acting on a shop's products: they can hide a product so the shop can't relist it, and
+   * deleting asks for a reason the shop is told.
+   */
+  moderation?: boolean;
   /** Query-key prefix, so the two areas never share cached data. */
   key: string;
   can: (p: 'create' | 'update' | 'delete' | 'inventory' | 'stockAdjust') => boolean;
@@ -21,7 +30,8 @@ export interface CatalogScope {
     product: (id: string) => Promise<AdminProduct>;
     createProduct: (p: ProductPayload) => Promise<AdminProduct>;
     updateProduct: (id: string, p: ProductPayload) => Promise<AdminProduct>;
-    deleteProduct: (id: string) => Promise<unknown>;
+    deleteProduct: (id: string, reason?: string) => Promise<unknown>;
+    setHidden?: (id: string, hidden: boolean, reason?: string) => Promise<AdminProduct>;
     patchVariant: (id: string, data: Partial<{ isAvailable: boolean; stockQty: number; trackInventory: boolean; price: number }>) => Promise<unknown>;
     upload: (file: File) => Promise<{ url: string }>;
     lowStock: (threshold?: number) => Promise<{ threshold: number; items: LowStockItem[] }>;
@@ -48,6 +58,36 @@ function useAdminScope(): CatalogScope {
     stockAdjust: usePermission(PERMS.stockAdjust),
   };
   return { base: '/admin', key: 'admin', can: (p) => allowed[p], api: adminApi };
+}
+
+const unsupported = () => Promise.reject(new Error('Not available for a shop’s catalogue.'));
+
+/** Staff managing one shop's products on its behalf. */
+export function useShopStaffScope(shopId: string, shopName?: string): CatalogScope {
+  const admin = useAdminScope();
+  return {
+    base: `/admin/shops/${shopId}`,
+    key: `admin-shop-${shopId}`,
+    owner: shopName,
+    back: { to: `/admin/shops/${shopId}`, label: shopName ?? 'Shop' },
+    moderation: true,
+    can: admin.can,
+    api: {
+      categories: adminApi.categories,
+      products: (q) => adminApi.shopProducts(shopId, q).then((r) => r.items),
+      product: (id) => adminApi.shopProduct(shopId, id),
+      createProduct: (p) => adminApi.createShopProduct(shopId, p),
+      updateProduct: (id, p) => adminApi.updateShopProduct(shopId, id, p),
+      deleteProduct: (id, reason) => adminApi.deleteShopProduct(shopId, id, reason),
+      setHidden: (id, hidden, reason) => adminApi.setShopProductHidden(shopId, id, hidden, reason),
+      patchVariant: (id, data) => adminApi.patchShopVariant(shopId, id, data),
+      upload: adminApi.upload,
+      lowStock: unsupported,
+      adjustStock: unsupported,
+      stockMovements: unsupported,
+      dailySummary: unsupported,
+    },
+  };
 }
 
 const Ctx = createContext<CatalogScope | null>(null);

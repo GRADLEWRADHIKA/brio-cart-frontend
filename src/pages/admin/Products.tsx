@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Pencil, Plus, Search, X } from 'lucide-react';
+import { ArrowLeft, Check, Eye, EyeOff, Pencil, Plus, Search, X } from 'lucide-react';
 import { formatINR } from '@shared/core';
 import { type AdminProduct } from '@/api/admin';
 import { PageHeader, Toggle, td, th } from '@/components/admin/kit';
-import { ButtonLink } from '@/components/ui/Button';
+import { Button, ButtonLink } from '@/components/ui/Button';
 import { ProductImage } from '@/components/ui/misc';
 import { useCatalogScope } from '@/components/admin/CatalogScope';
 import { cn } from '@/utils';
@@ -28,10 +28,24 @@ export default function Products() {
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => scope.api.patchVariant(id, { isAvailable }),
     onSuccess: () => qc.invalidateQueries({ queryKey: [scope.key, 'products'] }),
   });
+  const canModerate = !!scope.moderation && !!scope.api.setHidden && canStock;
+  const hide = useMutation({
+    mutationFn: ({ id, hidden, reason }: { id: string; hidden: boolean; reason?: string }) => scope.api.setHidden!(id, hidden, reason),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [scope.key, 'products'] }),
+  });
+  const askHide = (p: AdminProduct) => {
+    const reason = window.prompt(`Hide “${p.name}” from customers? ${scope.owner ?? 'The shop'} is told, and can’t put it back on sale until you unhide it.
+
+Reason (shown to the shop):`);
+    if (reason !== null) hide.mutate({ id: p.id, hidden: true, reason: reason.trim() || undefined });
+  };
 
   return (
     <>
-      <PageHeader title="Products" subtitle={data ? `${data.length} products` : undefined} actions={canCreate ? <ButtonLink to={`${scope.base}/products/new`} icon={<Plus className="size-4" />}>New product</ButtonLink> : undefined} />
+      {scope.back && <Link to={scope.back.to} className="mb-3 inline-flex items-center gap-1 text-sm font-bold text-forest-700"><ArrowLeft className="size-4" /> {scope.back.label}</Link>}
+      <PageHeader
+        title={scope.owner ? `${scope.owner}: products` : 'Products'}
+        subtitle={data ? `${data.length} products${scope.moderation ? ' · the shop is notified of every change you make' : ''}` : undefined} actions={canCreate ? <ButtonLink to={`${scope.base}/products/new`} icon={<Plus className="size-4" />}>New product</ButtonLink> : undefined} />
       <div className="mb-4 flex flex-wrap gap-2">
         <label className="flex h-10 min-w-60 flex-1 items-center gap-2 rounded-full border border-line bg-white px-4">
           <Search className="size-4 text-charcoal-400" />
@@ -46,6 +60,7 @@ export default function Products() {
           <option value="true">Archived</option>
         </select>
       </div>
+      {hide.error && <p className="mb-4 rounded-2xl bg-tomato-100 p-3 text-sm font-semibold text-tomato-500" role="alert">{(hide.error as Error).message}</p>}
       <div className="overflow-x-auto rounded-3xl border border-line bg-white">
         <table className="w-full min-w-[54rem] text-sm">
           <thead className="border-b border-line bg-ivory-50">
@@ -54,10 +69,11 @@ export default function Products() {
               <th className={th}>Category</th>
               <th className={th}>Pack sizes · price · availability</th>
               <th className={th}>Sold</th>
+              {canModerate && <th className={th}><span className="sr-only">Visibility</span></th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {isLoading && <tr><td colSpan={4} className="p-8"><div className="skeleton h-6" /></td></tr>}
+            {isLoading && <tr><td colSpan={5} className="p-8"><div className="skeleton h-6" /></td></tr>}
             {data?.map((p) => (
               <tr key={p.id} className="hover:bg-ivory-50">
                 <td className={td}>
@@ -78,6 +94,11 @@ export default function Products() {
                       </span>
                     </div>
                   )}
+                  {p.staffHidden && (
+                    <p className="mt-1.5 text-xs font-semibold text-tomato-500">
+                      Hidden by Brio Cart{p.staffHiddenReason ? `: ${p.staffHiddenReason}` : ''}
+                    </p>
+                  )}
                 </td>
                 <td className={td}>{p.category.name}</td>
                 <td className={td}>
@@ -92,9 +113,18 @@ export default function Products() {
                   </ul>
                 </td>
                 <td className={`${td} tabular-nums`}>{p.soldCount}</td>
+                {canModerate && (
+                  <td className={td}>
+                    {p.staffHidden ? (
+                      <Button size="sm" variant="outline" icon={<Eye className="size-4" />} disabled={hide.isPending} onClick={() => hide.mutate({ id: p.id, hidden: false })}>Unhide</Button>
+                    ) : (
+                      <Button size="sm" variant="outline" className="text-tomato-500" icon={<EyeOff className="size-4" />} disabled={hide.isPending} onClick={() => askHide(p)}>Hide</Button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
-            {data?.length === 0 && <tr><td colSpan={4} className="p-10 text-center text-charcoal-500">No products found.</td></tr>}
+            {data?.length === 0 && <tr><td colSpan={5} className="p-10 text-center text-charcoal-500">No products found.</td></tr>}
           </tbody>
         </table>
       </div>

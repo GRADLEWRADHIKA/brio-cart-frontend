@@ -32,6 +32,7 @@ const Returns = lazy(() => import('./Returns'));
 const Analytics = lazy(() => import('./Analytics'));
 const DailySummary = lazy(() => import('./DailySummary'));
 const Shops = lazy(() => import('./Shops'));
+const ShopCatalog = lazy(() => import('./ShopCatalog'));
 const Verification = lazy(() => import('./Verification'));
 const Shipping = lazy(() => import('./Shipping'));
 const Tickets = lazy(() => import('./Tickets'));
@@ -148,6 +149,7 @@ function Shell() {
                 <Route path="daily" element={guard('analytics:view', <DailySummary />)} />
                 <Route path="shops" element={guard('shop:view', <Shops />)} />
                 <Route path="shops/:id" element={guard('shop:view', <Shops />)} />
+                <Route path="shops/:shopId/products/*" element={guard('shop:view', <ShopCatalog />)} />
                 <Route path="verification" element={guard('kyc:review', <Verification />)} />
                 <Route path="verification/:userId" element={guard('kyc:review', <Verification />)} />
                 <Route path="shipping" element={guard('shipping:manage', <Shipping />)} />
