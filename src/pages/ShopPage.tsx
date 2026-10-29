@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { SearchX, SlidersHorizontal } from 'lucide-react';
@@ -62,9 +62,20 @@ export default function ShopPage() {
 
   const chip = (active: boolean) =>
     cn(
-      'shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition',
+      'shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition lg:px-3.5',
       active ? 'border-forest-800 bg-forest-800 text-ivory-50 shadow-md' : 'border-line bg-white text-charcoal-700 hover:border-forest-700/40',
     );
+
+  // Phones show the chips in one swipeable row: bring the selected one into view.
+  const chipRow = useRef<HTMLDivElement>(null);
+  const active = `${filters.category ?? ''}|${filters.collection ?? ''}|${categories?.length ?? 0}`;
+  useEffect(() => {
+    const row = chipRow.current;
+    const chip = row?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!row || !chip || row.scrollWidth <= row.clientWidth) return;
+    const offset = chip.getBoundingClientRect().left - row.getBoundingClientRect().left;
+    row.scrollTo({ left: row.scrollLeft + offset - (row.clientWidth - chip.offsetWidth) / 2, behavior: 'smooth' });
+  }, [active]);
 
   const popularityNote = filters.sort === 'popular' && first && !first.hasPopularityData;
 
@@ -81,9 +92,9 @@ export default function ShopPage() {
       </section>
 
       <div className="sticky top-[calc(4.5rem+env(safe-area-inset-top))] z-30 border-b border-line bg-ivory-50/90 backdrop-blur-xl lg:top-[7.5rem]">
-        <div className="container-page flex flex-col gap-3 py-3 lg:flex-row lg:items-center">
-          <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-1 lg:px-0" role="group" aria-label="Filter by category">
-            <button type="button" className={chip(!filters.category && !filters.collection)} onClick={() => update({ category: undefined, collection: undefined, page: undefined })}>
+        <div className="container-page flex flex-col gap-3 py-3 lg:flex-row lg:flex-wrap lg:items-center">
+          <div className="no-scrollbar -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0" ref={chipRow} role="group" aria-label="Filter by category">
+            <button type="button" className={chip(!filters.category && !filters.collection)} onClick={() => update({ category: undefined, collection: undefined, page: undefined })} aria-pressed={!filters.category && !filters.collection}>
               All
             </button>
             {categories?.map((c) => (
@@ -95,7 +106,7 @@ export default function ShopPage() {
               Daily Essentials
             </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2 lg:ml-auto">
             <label className="flex h-10 cursor-pointer items-center gap-2 rounded-full border border-line bg-white px-3.5 text-sm font-bold text-charcoal-700">
               <input type="checkbox" checked={!!filters.inStock} onChange={(e) => update({ inStock: e.target.checked ? 'true' : undefined })} className="size-4 accent-forest-700" />
               In stock only
