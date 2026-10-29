@@ -105,6 +105,8 @@ export default function ShopPage() {
             <button type="button" className={chip(filters.collection === 'essentials')} onClick={() => update({ collection: 'essentials', category: undefined })} aria-pressed={filters.collection === 'essentials'}>
               Daily Essentials
             </button>
+            {/* Browsers drop a scroll row's end padding: keep a gap after the last chip on phones. */}
+            <span aria-hidden className="w-2 shrink-0 lg:hidden" />
           </div>
           <div className="flex shrink-0 items-center gap-2 lg:ml-auto">
             <label className="flex h-10 cursor-pointer items-center gap-2 rounded-full border border-line bg-white px-3.5 text-sm font-bold text-charcoal-700">
