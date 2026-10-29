@@ -41,6 +41,17 @@ export function discountPercent(price: number, mrp: number | null) {
   return Math.round(((mrp - price) / mrp) * 100);
 }
 
+/** "today at 6 pm", "tomorrow at 9 am" or "on Sat, 2 Nov at 10 am" (India time), for a shop reopening. */
+export function reopensLabel(iso: string, now = new Date()) {
+  const d = new Date(iso);
+  const day = (x: Date) => x.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const time = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).toLowerCase();
+  const tomorrow = new Date(now.getTime() + 86_400_000);
+  if (day(d) === day(now)) return `today at ${time}`;
+  if (day(d) === day(tomorrow)) return `tomorrow at ${time}`;
+  return `on ${d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })} at ${time}`;
+}
+
 export function formatDate(iso: string, withTime = true) {
   return new Date(iso).toLocaleString('en-IN', {
     day: 'numeric',

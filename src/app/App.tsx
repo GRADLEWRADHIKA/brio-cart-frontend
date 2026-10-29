@@ -24,6 +24,7 @@ const AdminApp = lazy(() => import('@/pages/admin/AdminApp'));
 const RiderApp = lazy(() => import('@/pages/rider/RiderApp'));
 const RiderRegisterPage = lazy(() => import('@/pages/rider/RiderRegisterPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
+const SavedPage = lazy(() => import('@/pages/SavedPage'));
 const SellerApp = lazy(() => import('@/pages/seller/SellerApp'));
 const SellerRegisterPage = lazy(() => import('@/pages/seller/SellerRegisterPage'));
 const ShopStorePage = lazy(() => import('@/pages/ShopStorePage'));
@@ -47,6 +48,7 @@ const customerRoutes: RouteObject[] = [
   { path: 'shops', element: <ShopStorePage /> },
   { path: 'shops/:slug', element: <ShopStorePage /> },
   { path: 'cart', element: <CartPage /> },
+  { path: 'saved', element: <SavedPage /> },
   // Customer-only pages: guests may check out; staff and riders are sent to their own home.
   { path: 'checkout', element: <RequireRole roles={['CUSTOMER']} allowGuest><CheckoutPage /></RequireRole> },
   { path: 'orders/:orderNumber', element: <OrderPage /> },

@@ -2,25 +2,25 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Banknote, ChevronRight, Clock3, Package, PackageX, ShieldCheck, ShoppingBag, Truck } from 'lucide-react';
-import { buildWhatsAppUrl, formatINR } from '@shared/core';
+import { formatINR } from '@shared/core';
 import { catalogApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
 import { useCart } from '@/store/cart';
 import { useUi } from '@/store/ui';
 import { useAddToCart } from '@/hooks/useAddToCart';
-import { useContact, useStoreInfo } from '@/hooks/useStoreInfo';
+import { useStoreInfo } from '@/hooks/useStoreInfo';
 import { BestSellerBadge, isBestSeller, ProductCard } from '@/components/products/ProductCard';
+import { StockAlertButton } from '@/components/products/StockAlertButton';
+import { WishlistButton } from '@/components/products/WishlistButton';
 import { tintFor } from '@/components/products/tints';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { EmptyState, Price, ProductImage, QuantityStepper, SectionHeading } from '@/components/ui/misc';
-import { WhatsAppIcon } from '@/components/ui/Brand';
-import { cn, discountPercent, openExternal } from '@/utils';
+import { cn, discountPercent, reopensLabel } from '@/utils';
 
 export default function ProductPage() {
   const { slug = '' } = useParams();
   const { data, isLoading, error } = useQuery({ queryKey: ['product', slug], queryFn: () => catalogApi.product(slug) });
   const { data: store } = useStoreInfo();
-  const { whatsapp } = useContact();
   const product = data?.product;
   const [variantId, setVariantId] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
@@ -92,7 +92,10 @@ export default function ProductPage() {
           <Link to={`/shop?category=${product.category.slug}`} className={cn('eyebrow', tint.text)}>
             {product.category.name}
           </Link>
-          <h1 className="mt-3 font-display text-4xl font-semibold leading-[1.05] text-forest-900 sm:text-5xl">{product.name}</h1>
+          <div className="mt-3 flex items-start justify-between gap-3">
+            <h1 className="font-display text-4xl font-semibold leading-[1.05] text-forest-900 sm:text-5xl">{product.name}</h1>
+            <WishlistButton product={product} size="lg" className="mt-1 shrink-0" />
+          </div>
           {product.nameHi && (
             <p lang="hi" className="mt-2 font-deva text-xl text-charcoal-500">
               {product.nameHi}
@@ -152,11 +155,12 @@ export default function ProductPage() {
                 </Button>
               </>
             ) : product.shop && !product.shop.isOpen ? (
-              <p className="rounded-2xl bg-turmeric-100 px-4 py-3 text-sm font-semibold text-[#6b4500]">{product.shop.name} is closed right now. You can order once it opens again.</p>
+              <p className="rounded-2xl bg-turmeric-100 px-4 py-3 text-sm font-semibold text-[#6b4500]">
+                {product.shop.name} is closed right now.{' '}
+                {product.shop.reopensAt ? `It opens again ${reopensLabel(product.shop.reopensAt)}.` : 'You can order once it opens again.'}
+              </p>
             ) : (
-              <Button size="lg" variant="whatsapp" icon={<WhatsAppIcon className="size-5" />} onClick={() => openExternal(buildWhatsAppUrl(whatsapp, `Hello Brio Cart, please let me know when ${product.name} (${variant.label}) is back in stock.`))}>
-                Ask when it’s back
-              </Button>
+              <StockAlertButton variantId={variant.id} label={`${product.name} (${variant.label})`} className="flex-1 sm:flex-none" />
             )}
           </div>
           {inCart > 0 && (

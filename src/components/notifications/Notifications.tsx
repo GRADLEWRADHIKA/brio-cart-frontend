@@ -11,6 +11,7 @@ import { cn, formatDate } from '@/utils';
 
 /** Where a notification leads for each role. */
 export function notificationHref(n: AppNotification, role: Role | undefined): string | null {
+  if (n.link) return n.link;
   if (role === 'ADMIN' || role === 'SUPERADMIN') {
     if (n.type === 'LOW_STOCK') return '/admin/stock';
     if (n.type === 'CAMPAIGN_ENDING') return hasPermission(role, 'settings:manage') ? '/admin/settings' : '/admin';

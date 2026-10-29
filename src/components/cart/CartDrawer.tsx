@@ -55,7 +55,7 @@ export function CartDrawer() {
         ) : (
           <>
             <div className="flex-1 overflow-y-auto px-5">
-              {groups.length > 1 ? <SellerSplit groups={groups} className="mt-4" /> : <FreeDeliveryMeter totals={totals} threshold={rules.freeDeliveryThreshold} className="mt-4" />}
+              {groups.length > 1 ? <SellerSplit groups={groups} className="mt-4" /> : <FreeDeliveryMeter totals={totals} threshold={rules.freeDeliveryThreshold} className="mt-4" onNavigate={close} />}
               <ul className="divide-y divide-line">
                 {lines.map((l) => (
                   <CartLineItem key={l.variantId} line={l} compact onNavigate={close} />

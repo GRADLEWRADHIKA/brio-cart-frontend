@@ -1,11 +1,14 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Store, Trash2, Truck } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { AlertTriangle, Plus, Store, Trash2, Truck } from 'lucide-react';
 import { formatINR, type OrderTotals } from '@shared/core';
+import { catalogApi } from '@/api/endpoints';
 import { useCart, type CartLine } from '@/store/cart';
 import { ProductImage, QuantityStepper } from '@/components/ui/misc';
 import { cn } from '@/utils';
 
-export function FreeDeliveryMeter({ totals, threshold, className }: { totals: OrderTotals; threshold: number; className?: string }) {
+export function FreeDeliveryMeter({ totals, threshold, className, onNavigate }: { totals: OrderTotals; threshold: number; className?: string; onNavigate?: () => void }) {
   if (threshold <= 0 || totals.subtotal === 0) return null;
   const pct = Math.min(100, Math.round(((threshold - totals.amountToFreeDelivery) / threshold) * 100));
   const free = totals.amountToFreeDelivery === 0;
@@ -18,6 +21,63 @@ export function FreeDeliveryMeter({ totals, threshold, className }: { totals: Or
       <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-mint-200" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Progress to free delivery">
         <div className="h-full rounded-full bg-gradient-to-r from-leaf-500 to-lime-300 transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} />
       </div>
+      {!free && <FreeDeliveryPicks gap={totals.amountToFreeDelivery} onNavigate={onNavigate} />}
+    </div>
+  );
+}
+
+const PICKS = 3;
+
+/**
+ * One-tap items that get the cart over the free-delivery line: from the same seller, not already
+ * in the cart, the cheapest that cover the gap first, then the closest below it.
+ */
+function FreeDeliveryPicks({ gap, onNavigate }: { gap: number; onNavigate?: () => void }) {
+  const lines = useCart((s) => s.lines);
+  const add = useCart((s) => s.add);
+  const sellerId = lines[0]?.shop?.id ?? null;
+  const { data } = useQuery({ queryKey: ['products', { sort: 'popular', inStock: true, pageSize: 60 }], queryFn: () => catalogApi.products({ sort: 'popular', inStock: true, pageSize: 60 }), staleTime: 5 * 60_000 });
+  const picks = useMemo(() => {
+    const inCart = new Set(lines.map((l) => l.productId));
+    const options = (data?.items ?? [])
+      .filter((p) => (p.shop?.id ?? null) === sellerId && (!p.shop || p.shop.isOpen) && !inCart.has(p.id))
+      .flatMap((p) => {
+        const v = p.variants.find((x) => x.inStock);
+        return v ? [{ product: p, variant: v }] : [];
+      });
+    const covers = options.filter((o) => o.variant.price >= gap).sort((a, b) => a.variant.price - b.variant.price);
+    const below = options.filter((o) => o.variant.price < gap).sort((a, b) => b.variant.price - a.variant.price);
+    return [...covers, ...below].slice(0, PICKS);
+  }, [data, lines, sellerId, gap]);
+  if (!picks.length) return null;
+  return (
+    // w-0 + min-w-full: the row scrolls inside the card instead of widening the page.
+    <div className="mt-3 w-0 min-w-full" data-testid="free-delivery-picks">
+      <p className="text-xs font-bold text-charcoal-500">Add one of these to get there</p>
+      <ul className="no-scrollbar -mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1">
+        {picks.map(({ product, variant }) => (
+          <li key={product.id} className="flex w-36 shrink-0 flex-col rounded-2xl bg-white p-2 shadow-sm">
+            <Link to={`/product/${product.slug}`} onClick={onNavigate} className="flex items-center gap-2">
+              <ProductImage src={product.imageUrl} alt="" className="size-11 shrink-0 rounded-xl bg-ivory-100 p-0.5" />
+              <span className="line-clamp-2 text-xs font-bold leading-tight">{product.name}</span>
+            </Link>
+            <div className="mt-2 flex items-center justify-between gap-1">
+              <span className="text-xs text-charcoal-500">
+                {variant.label} · <span className="font-extrabold text-charcoal-900">{formatINR(variant.price)}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => add(product, variant, 1)}
+                className="grid size-8 shrink-0 place-items-center rounded-full bg-forest-800 text-ivory-50 transition hover:bg-forest-700 active:scale-95"
+                aria-label={`Add ${product.name} (${variant.label}) to cart`}
+              >
+                <Plus className="size-4" />
+              </button>
+            </div>
+            {variant.price >= gap && <span className="mt-1 text-[0.65rem] font-extrabold uppercase text-leaf-600">Unlocks free delivery</span>}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -91,11 +151,17 @@ export function SellerSplit({ groups, className }: { groups: Array<{ shop: { nam
       <p className="mt-1 text-xs text-charcoal-500">Your items come from {groups.length} sellers. Each packs its own order, with its own delivery fee.</p>
       <ul className="mt-2 space-y-1">
         {groups.map((g, i) => (
-          <li key={g.shop?.name ?? `brio-${i}`} className="flex justify-between gap-3">
+          <li key={g.shop?.name ?? `brio-${i}`} className="flex flex-wrap justify-between gap-x-3">
             <span className="truncate">{g.shop?.name ?? 'Brio Cart'}</span>
             <span className="shrink-0 tabular-nums text-charcoal-700">
               {formatINR(g.totals.subtotal)} + {g.totals.deliveryFee ? formatINR(g.totals.deliveryFee) : 'free'} delivery
             </span>
+            {g.totals.amountToFreeDelivery > 0 && (
+              <span className="w-full text-xs font-bold text-leaf-600">
+                <Truck className="mr-1 inline size-3.5" />
+                Add {formatINR(g.totals.amountToFreeDelivery)} more from {g.shop?.name ?? 'Brio Cart'} for free delivery
+              </span>
+            )}
           </li>
         ))}
       </ul>

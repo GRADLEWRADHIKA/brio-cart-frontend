@@ -5,7 +5,8 @@ import { ImageUp } from 'lucide-react';
 import { shopApi, type MyShop, type ShopProfilePayload } from '@/api/shop';
 import { ApiError } from '@/api/client';
 import { useStoreInfo } from '@/hooks/useStoreInfo';
-import { Card, PageHeader, Toggle } from '@/components/admin/kit';
+import { Card, PageHeader } from '@/components/admin/kit';
+import { ShopOpenSwitch } from '@/components/seller/ShopOpenSwitch';
 import { SelectField, TextAreaField, TextField } from '@/components/forms/Field';
 import { Button } from '@/components/ui/Button';
 import { ProductImage } from '@/components/ui/misc';
@@ -52,7 +53,6 @@ export default function SellerSettings() {
       if (fields) for (const [k, m] of Object.entries(fields)) setError(k as never, { message: m });
     },
   });
-  const setOpen = useMutation({ mutationFn: shopApi.setOpen, onSuccess: onSaved });
   const upload = useMutation({
     mutationFn: shopApi.upload,
     onSuccess: (r) => {
@@ -67,12 +67,9 @@ export default function SellerSettings() {
   return (
     <>
       <PageHeader title="Shop settings" subtitle="What customers and riders see about your shop." />
-      <Card title="Taking orders" className="mb-6">
-        <label className="flex items-center gap-3 text-sm font-bold">
-          <Toggle checked={shop.isOpen} label="Shop open for orders" disabled={setOpen.isPending} onChange={(v) => setOpen.mutate(v)} />
-          {shop.isOpen ? 'Open: customers can order your products' : 'Closed: your products show as unavailable'}
-        </label>
-        <p className="mt-3 text-sm text-charcoal-500">Brio Cart keeps {shop.commissionPercent}% of your item sales as commission{shop.hasOwnCommission ? ' (your shop’s own rate)' : ''}.</p>
+      <ShopOpenSwitch shop={shop} className="mb-3" />
+      <Card className="mb-6">
+        <p className="text-sm text-charcoal-500">Brio Cart keeps {shop.commissionPercent}% of your item sales as commission{shop.hasOwnCommission ? ' (your shop’s own rate)' : ''}.</p>
       </Card>
       <SellingArea shop={shop} />
       <PickupLocation shop={shop} />

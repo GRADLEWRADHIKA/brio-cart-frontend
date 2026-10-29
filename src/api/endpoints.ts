@@ -74,6 +74,10 @@ export const authApi = {
 };
 
 export const accountApi = {
+  /** "Tell me when it's back": pack sizes this person is waiting for. */
+  stockAlerts: () => api.get<{ variantIds: string[] }>('/account/stock-alerts').then((r) => r.variantIds),
+  addStockAlert: (variantId: string) => api.post<{ waiting: boolean; inStock: boolean }>('/account/stock-alerts', { variantId }),
+  removeStockAlert: (variantId: string) => api.delete<void>(`/account/stock-alerts/${encodeURIComponent(variantId)}`),
   sessions: () => api.get<{ items: Array<{ id: string; userAgent: string | null; ip: string | null; createdAt: string; lastSeenAt: string; current: boolean }> }>('/account/sessions').then((r) => r.items),
   logoutOthers: () => api.post<{ ok: true; token: string }>('/account/sessions/logout-others'),
   exportData: () => api.get<Record<string, unknown>>('/account/export'),

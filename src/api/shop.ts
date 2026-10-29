@@ -15,6 +15,9 @@ export interface MyShop {
   phone: string;
   area: { id: string; name: string } | null;
   isOpen: boolean;
+  /** Holiday mode: closed until this time, then reopened automatically. */
+  closedUntil: string | null;
+  closedNote: string | null;
   isActive: boolean;
   prepMinutes: number;
   commissionPercent: number;
@@ -82,7 +85,8 @@ export const shopApi = {
   me: () => api.get<{ shop: MyShop }>('/shop/me').then((r) => r.shop),
   saveProfile: (d: ShopProfilePayload) => api.put<{ shop: MyShop }>('/shop/me', d).then((r) => r.shop),
   setSelling: (d: { serviceScope: ServiceScope; serviceStates: string[] }) => api.put<{ shop: MyShop }>('/shop/me/selling', d).then((r) => r.shop),
-  setOpen: (isOpen: boolean) => api.patch<{ shop: MyShop }>('/shop/me/open', { isOpen }).then((r) => r.shop),
+  /** `closedUntil` puts the shop on holiday: it reopens by itself then. */
+  setOpen: (isOpen: boolean, holiday?: { closedUntil?: string | null; closedNote?: string | null }) => api.patch<{ shop: MyShop }>('/shop/me/open', { isOpen, ...holiday }).then((r) => r.shop),
   setDeliverySlots: (slots: string[]) => api.put<{ shop: MyShop }>('/shop/me/delivery-slots', { slots }).then((r) => r.shop),
   setLocation: (location: { lat: number; lng: number } | null) => api.put<{ shop: MyShop }>('/shop/me/location', { location }).then((r) => r.shop),
   summary: () => api.get<ShopSummary>('/shop/summary'),

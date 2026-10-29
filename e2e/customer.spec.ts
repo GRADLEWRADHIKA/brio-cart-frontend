@@ -72,7 +72,7 @@ test.describe('customer journey', () => {
   test('out-of-stock products cannot be added', async ({ page }) => {
     await page.goto('/product/grapes');
     await expect(page.getByRole('button', { name: /Add to cart/ })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /Ask when it’s back/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Notify me when it’s back/ })).toBeVisible();
   });
 
   test('WhatsApp ordering composes an encoded wa.me link and does not create an order', async ({ page, request }) => {

@@ -20,7 +20,7 @@ export interface Product {
   imageUrl: string | null;
   category: { id: string; slug: string; name: string };
   /** The local shop selling it; null for Brio Cart's own products. `isOpen` false = can't be ordered now. */
-  shop: { id: string; slug: string; name: string; isOpen: boolean } | null;
+  shop: { id: string; slug: string; name: string; isOpen: boolean; /** Holiday mode: when it opens again. */ reopensAt?: string | null } | null;
   collections: string[];
   inStock: boolean;
   fromPrice: number | null;
@@ -283,6 +283,8 @@ export interface AppNotification {
   body: string;
   orderId: string | null;
   orderNumber: string | null;
+  /** Page to open, for alerts that aren't about an order. */
+  link?: string | null;
   readAt: string | null;
   createdAt: string;
 }
@@ -398,6 +400,9 @@ export interface PublicShop {
   address: string;
   area: { id: string; name: string } | null;
   isOpen: boolean;
+  /** Holiday mode: when it opens again, and the owner's note. */
+  closedUntil?: string | null;
+  closedNote?: string | null;
   prepMinutes: number;
   productCount?: number;
 }

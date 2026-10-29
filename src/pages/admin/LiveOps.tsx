@@ -26,6 +26,10 @@ export default function LiveOps() {
     return m;
   }, [data, focus]);
 
+  // Re-fit only when deliveries start or finish. Hovering an order adds its home pin but mustn't
+  // move the map: every jump throws away the tiles still downloading.
+  const fitKey = (data?.orders ?? []).filter((o) => o.status === 'OUT_FOR_DELIVERY').map((o) => o.id).join(',');
+
   const byStatus = (s: string) => data?.orders.filter((o) => o.status === s) ?? [];
   /** Orders each rider is carrying (batched trips show as "2 orders"). */
   const perRider = useMemo(() => {
@@ -49,7 +53,7 @@ export default function LiveOps() {
       <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_24rem]">
         <Card className="overflow-hidden p-0 sm:p-0">
           <Suspense fallback={<div className="skeleton h-[32rem] rounded-none" />}>
-            <DeliveryMap className="h-[32rem]" markers={markers} fitKey={markers.filter((x) => x.kind !== "rider").map((x) => x.id).join(",")} />
+            <DeliveryMap className="h-[32rem]" markers={markers} fitKey={fitKey} />
           </Suspense>
         </Card>
         <Card title="Active orders" className="max-h-[32rem] overflow-y-auto">

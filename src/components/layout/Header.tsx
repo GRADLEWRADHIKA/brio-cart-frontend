@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { Bike, Home, LayoutDashboard, LayoutGrid, Menu, Search, ShoppingBag, Store, User, X } from 'lucide-react';
+import { Bike, Heart, Home, LayoutDashboard, LayoutGrid, Menu, Search, ShoppingBag, Store, User, X } from 'lucide-react';
 import { homePathFor, type Role } from '@shared/core';
 import { NotificationBell } from '@/components/notifications/Notifications';
 import { useCart, selectCount } from '@/store/cart';
@@ -11,6 +11,7 @@ import { Logo, WhatsAppIcon } from '@/components/ui/Brand';
 import { buildWhatsAppUrl } from '@shared/core';
 import { cn, openExternal, timeToCutoff } from '@/utils';
 import { SearchBox } from './SearchBox';
+import { useWishlist } from '@/store/wishlist';
 import { LocationPicker } from './LocationPicker';
 
 function CartButton({ className }: { className?: string }) {
@@ -96,6 +97,7 @@ export function Header() {
             <button type="button" className="grid size-11 place-items-center rounded-full hover:bg-ivory-200 md:hidden" onClick={() => setSearchOpen(true)} aria-label="Search">
               <Search className="size-5" />
             </button>
+            <SavedLink />
             <NotificationBell />
             {(() => {
               const link = accountLink(user?.role);
@@ -191,6 +193,7 @@ function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
             ...(categories ?? []).map((c) => ({ to: `/shop?category=${c.slug}`, label: c.name })),
             { to: '/shop?collection=essentials', label: 'Daily Essentials' },
             { to: '/shops', label: 'Local shops' },
+            { to: '/saved', label: 'Saved items' },
             { to: '/track', label: 'Track an order' },
             user ? { to: accountLink(user.role).to, label: accountLink(user.role).label } : { to: '/login', label: 'Sign in / Register' },
             ...(user?.role === 'CUSTOMER' ? [{ to: '/notifications', label: 'Notifications' }] : []),
@@ -253,5 +256,16 @@ export function MobileTabBar() {
         </NavLink>
       </div>
     </nav>
+  );
+}
+
+/** Heart in the header: saved items, with how many. */
+function SavedLink() {
+  const count = useWishlist((s) => s.items.length);
+  return (
+    <Link to="/saved" className="relative grid size-11 place-items-center rounded-full hover:bg-ivory-200" aria-label={`Saved items${count ? ` (${count})` : ''}`}>
+      <Heart className="size-5" />
+      {count > 0 && <span className="absolute right-1 top-1 grid min-w-[1.05rem] place-items-center rounded-full bg-tomato-500 px-1 text-[0.6rem] font-extrabold text-white">{count}</span>}
+    </Link>
   );
 }

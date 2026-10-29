@@ -1,22 +1,15 @@
 import { Link } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, PackageX, Star } from 'lucide-react';
 import { formatINR } from '@shared/core';
 import { shopApi } from '@/api/shop';
-import { Card, PageHeader, Stat, Toggle, td, th } from '@/components/admin/kit';
+import { Card, PageHeader, Stat, td, th } from '@/components/admin/kit';
+import { ShopOpenSwitch } from '@/components/seller/ShopOpenSwitch';
 import { StatusPill } from '@/components/checkout/OrderStatusTracker';
 import { formatDate } from '@/utils';
 
 export default function SellerDashboard() {
-  const qc = useQueryClient();
   const { data: s, isLoading, error } = useQuery({ queryKey: ['seller', 'summary'], queryFn: shopApi.summary, refetchInterval: 30_000 });
-  const setOpen = useMutation({
-    mutationFn: shopApi.setOpen,
-    onSuccess: (shop) => {
-      qc.setQueryData(['seller', 'me'], shop);
-      void qc.invalidateQueries({ queryKey: ['seller', 'summary'] });
-    },
-  });
   if (error) return <p className="text-tomato-500">{(error as Error).message}</p>;
   if (isLoading || !s) return <div className="skeleton h-60 rounded-3xl" />;
 
@@ -25,16 +18,8 @@ export default function SellerDashboard() {
       <PageHeader
         title={s.shop.name}
         subtitle="Your orders and shop at a glance. Refreshes every 30 seconds."
-        actions={
-          <label className="flex items-center gap-3 rounded-full border border-line bg-white px-4 py-2 text-sm font-bold">
-            <Toggle checked={s.shop.isOpen} label="Shop open for orders" disabled={setOpen.isPending} onChange={(v) => setOpen.mutate(v)} />
-            {s.shop.isOpen ? 'Open for orders' : 'Closed'}
-          </label>
-        }
       />
-      {!s.shop.isOpen && (
-        <p className="mb-4 rounded-2xl bg-turmeric-100 p-3 text-sm font-semibold text-[#6b4500]">Your shop is closed. Customers can see your products but can’t order them until you open again.</p>
-      )}
+      <ShopOpenSwitch shop={s.shop} className="mb-6" />
       {s.awaitingDecision > 0 && (
         <Link to="/seller/orders?status=PENDING" className="mb-6 flex items-center justify-between gap-3 rounded-3xl bg-forest-800 p-5 text-ivory-50 hover:bg-forest-700">
           <span>

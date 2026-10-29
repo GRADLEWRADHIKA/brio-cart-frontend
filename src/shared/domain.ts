@@ -143,6 +143,7 @@ export const NOTIFICATION_TYPES = [
   'SHIPPING',
   'DELIVERY_CODE',
   'SHOP_LISTING',
+  'BACK_IN_STOCK',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

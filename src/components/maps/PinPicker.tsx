@@ -3,6 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { LatLng } from '@/types';
 import { cn } from '@/utils';
+import { TILE_ATTRIBUTION, TILE_URL } from './tiles';
 
 const STORE_SVG = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>';
 const icon = L.divIcon({ className: '', html: `<div class="brio-pin is-store">${STORE_SVG}</div>`, iconSize: [44, 44], iconAnchor: [22, 22] });
@@ -18,9 +19,9 @@ export default function PinPicker({ value, fallback, onChange, className }: { va
   useEffect(() => {
     if (!el.current || map.current) return;
     const m = L.map(el.current, { zoomControl: false, scrollWheelZoom: false });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer(TILE_URL, {
       maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+      attribution: TILE_ATTRIBUTION,
     }).addTo(m);
     L.control.zoom({ position: 'bottomright' }).addTo(m);
     m.setView([fallback.lat, fallback.lng], 15);

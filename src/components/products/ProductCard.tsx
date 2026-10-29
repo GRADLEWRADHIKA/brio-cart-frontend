@@ -6,6 +6,7 @@ import { useCart } from '@/store/cart';
 import { useAddToCart } from '@/hooks/useAddToCart';
 import { Price, ProductImage, QuantityStepper } from '@/components/ui/misc';
 import { cn, discountPercent } from '@/utils';
+import { WishlistButton } from './WishlistButton';
 import { tintFor } from './tints';
 
 /** Products the store has put in the Bestsellers collection. */
@@ -67,6 +68,7 @@ export const ProductCard = memo(function ProductCard({ product, eager, className
           )}
         </div>
       </Link>
+      <WishlistButton product={product} className="absolute right-4 top-4" />
 
       <div className="flex flex-1 flex-col px-1.5 pb-1 pt-3">
         {product.nameHi && (

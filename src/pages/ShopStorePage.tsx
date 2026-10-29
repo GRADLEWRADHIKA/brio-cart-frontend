@@ -6,7 +6,7 @@ import { catalogApi } from '@/api/endpoints';
 import { ProductGrid } from '@/components/products/ProductCard';
 import { EmptyState, ProductImage, SectionHeading } from '@/components/ui/misc';
 import { ButtonLink } from '@/components/ui/Button';
-import { cn } from '@/utils';
+import { cn, reopensLabel } from '@/utils';
 
 /** /shops lists local shops on Brio Cart; /shops/:slug is one shop with its products. */
 export default function ShopStorePage() {
@@ -39,7 +39,7 @@ function AllShops() {
                 <span className="block truncate font-display text-xl font-semibold text-forest-900">{s.name}</span>
                 <span className="block text-sm text-charcoal-500">{s.area?.name ?? s.address}</span>
                 <span className={cn('mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-bold', s.isOpen ? 'bg-mint-100 text-forest-800' : 'bg-ivory-200 text-charcoal-500')}>
-                  {s.isOpen ? 'Open' : 'Closed'} · {s.productCount} product{s.productCount === 1 ? '' : 's'}
+                  {s.isOpen ? 'Open' : s.closedUntil ? 'On holiday' : 'Closed'} · {s.productCount} product{s.productCount === 1 ? '' : 's'}
                 </span>
               </span>
             </Link>
@@ -86,12 +86,17 @@ function OneShop({ slug }: { slug: string }) {
               <span className="inline-flex items-center gap-1"><Clock className="size-4" /> Usually ready in {s.prepMinutes} min</span>
             </p>
           </div>
-          <span className={cn('rounded-full px-3 py-1 text-sm font-extrabold sm:ml-auto', s.isOpen ? 'bg-lime-300 text-forest-900' : 'bg-white/15')}>{s.isOpen ? 'Open now' : 'Closed'}</span>
+          <span className={cn('rounded-full px-3 py-1 text-sm font-extrabold sm:ml-auto', s.isOpen ? 'bg-lime-300 text-forest-900' : 'bg-white/15')}>{s.isOpen ? 'Open now' : s.closedUntil ? 'On holiday' : 'Closed'}</span>
         </header>
       ) : (
         <div className="skeleton mt-3 h-36 rounded-[2rem]" />
       )}
-      {s && !s.isOpen && <p className="mt-4 rounded-2xl bg-turmeric-100 p-3 text-sm font-semibold text-[#6b4500]">{s.name} is closed right now. You can browse, and order once it opens.</p>}
+      {s && !s.isOpen && (
+        <p className="mt-4 rounded-2xl bg-turmeric-100 p-3 text-sm font-semibold text-[#6b4500]" data-testid="shop-closed-note">
+          {s.closedNote ? `${s.closedNote.replace(/[.!]+$/, '')}. ` : ''}
+          {s.name} is closed right now{s.closedUntil ? ` and opens again ${reopensLabel(s.closedUntil)}` : ''}. You can browse, and order once it opens.
+        </p>
+      )}
       <ProductGrid className="mt-6" products={products.data?.items} loading={products.isLoading} />
       {products.data && products.data.items.length === 0 && <p className="mt-6 text-charcoal-500">This shop hasn’t listed any products yet.</p>}
     </div>
