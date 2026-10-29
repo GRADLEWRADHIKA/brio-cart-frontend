@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ban, Banknote, Bell, Bike, CheckCircle2, ChevronDown, Clock, FileCheck, History, KeyRound, LogOut, MapPin, MapPinCheck, Navigation, Package, PackageCheck, Phone, Power, Radio, RefreshCw, TriangleAlert, Wallet, X } from 'lucide-react';
+import { Ban, Banknote, Bell, Bike, CheckCircle2, ChevronDown, Clock, FileCheck, History, KeyRound, LogOut, MapPin, MapPinCheck, Navigation, Route as RouteIcon, Package, PackageCheck, Phone, Power, Radio, RefreshCw, TriangleAlert, Wallet, X } from 'lucide-react';
 import { DELIVERY_OTP_LENGTH, DELIVERY_STATUS_LABELS, formatINR, ORDER_STATUS_LABELS } from '@shared/core';
 import { riderApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
@@ -233,6 +233,11 @@ function OrderCard({ order, onSheet }: { order: Order; onSheet: (s: { order: Ord
     <article className={cn('rounded-[1.5rem] bg-white p-4 shadow-soft', step === 'OUT_FOR_DELIVERY' && 'ring-2 ring-lime-300', step === 'ASSIGNED' && 'ring-2 ring-turmeric-400')}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
+          {order.route && order.route.of > 1 && (
+            <p className="mb-1 inline-block whitespace-nowrap rounded-full bg-forest-800 px-2.5 py-0.5 text-[0.7rem] font-extrabold text-lime-300" data-testid="stop-chip">
+              Stop {order.route.stop} of {order.route.of} · {order.route.kind === 'PICKUP' ? 'Collect' : 'Drop'}
+            </p>
+          )}
           <p className="font-mono text-sm font-bold text-charcoal-500">{order.orderNumber}</p>
           <p className="truncate text-lg font-extrabold">{order.customer.name}</p>
         </div>
@@ -407,6 +412,13 @@ function useSecondsLeft(iso: string) {
   return Math.max(0, Math.ceil((new Date(iso).getTime() - now) / 1000));
 }
 
+/** One Google Maps route through every stop, in order. */
+const tripUrl = (stops: string[]) => {
+  const q = new URLSearchParams({ api: '1', destination: stops.at(-1) ?? '', travelmode: 'two-wheeler' });
+  if (stops.length > 1) q.set('waypoints', stops.slice(0, -1).join('|'));
+  return `https://www.google.com/maps/dir/?${q.toString()}`;
+};
+
 const distanceLabel = (d: number | null | undefined) => (d == null ? null :d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`);
 
 function OrderSummary({ o }: { o: AvailableOrder }) {
@@ -423,6 +435,11 @@ function OrderSummary({ o }: { o: AvailableOrder }) {
         {o.paymentMethod === 'COD' ? ' · Cash' : ''}
       </p>
       {(o.deliverySlot || o.deliveryDate) && <p className="text-xs text-charcoal-400">{[o.deliveryDate, o.deliverySlot].filter(Boolean).join(' · ')}</p>}
+      {o.fitsRoute && (
+        <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-lime-300 px-2 py-0.5 text-[0.68rem] font-extrabold text-forest-900" data-testid="fits-route">
+          <RouteIcon className="size-3" /> Fits your route · same slot, drop nearby
+        </p>
+      )}
       {o.pickup && (
         <p className="mt-1 truncate text-xs font-bold text-forest-700">
           Pick up at {o.pickup.shopName}{o.pickup.areaName ? ` (${o.pickup.areaName})` : ''} · {o.pickup.ready ? 'packed and ready' : 'being packed'}
@@ -522,6 +539,8 @@ function Deliveries() {
 
   const current = data?.filter((o) => o.delivery.status === 'PICKED_UP' || o.delivery.status === 'OUT_FOR_DELIVERY') ?? [];
   const assigned = data?.filter((o) => o.delivery.status === 'ASSIGNED' || o.delivery.status === 'ACCEPTED') ?? [];
+  /** Every stop of the trip in order (the API sorts orders by stop), for one Google Maps route. */
+  const stops = (data ?? []).filter((o) => o.route).map((o) => o.route!);
 
   return (
     <>
@@ -541,6 +560,20 @@ function Deliveries() {
           <p className="font-display text-3xl font-semibold">{assigned.length}</p>
         </div>
       </div>
+      {stops.length > 1 && (
+        <div className="mt-3 flex items-center gap-3 rounded-[1.5rem] bg-forest-800 p-4 text-ivory-50" data-testid="trip-route">
+          <RouteIcon className="size-6 shrink-0 text-lime-300" />
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="font-extrabold">{stops.length} orders on this trip</p>
+            <p className="text-ivory-50/70">
+              {stops.filter((x) => x.kind === 'PICKUP').length > 0 ? `Collect ${stops.filter((x) => x.kind === 'PICKUP').length}, then ` : ''}drop {stops.filter((x) => x.kind === 'DROP').length || stops.length}, nearest first.
+            </p>
+          </div>
+          <Button size="sm" variant="lime" icon={<Navigation className="size-4" />} onClick={() => openExternal(tripUrl(stops.map((x) => x.navTo)))}>
+            Navigate all
+          </Button>
+        </div>
+      )}
       {isLoading && <div className="skeleton mt-3 h-48 rounded-[1.5rem]" />}
       {error && <p className="mt-3 rounded-2xl bg-tomato-100 p-4 text-sm font-semibold text-tomato-500">{error instanceof ApiError ? error.message : 'Could not load orders'}</p>}
       {current.length > 0 && (

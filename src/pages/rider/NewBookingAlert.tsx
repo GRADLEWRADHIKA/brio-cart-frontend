@@ -25,6 +25,9 @@ interface Booking {
   total: number;
   cash: boolean;
   when: string | null;
+  /** Another order for the same slot near the rider's current one. */
+  fitsRoute: boolean;
+  carrying: number;
 }
 
 function fromOffer(o: AvailableOrder): Booking {
@@ -40,6 +43,8 @@ function fromOffer(o: AvailableOrder): Booking {
     total: o.total,
     cash: o.paymentMethod === 'COD',
     when: [o.deliveryDate, o.deliverySlot].filter(Boolean).join(' · ') || null,
+    fitsRoute: !!o.fitsRoute,
+    carrying: o.carrying ?? 0,
   };
 }
 
@@ -56,6 +61,8 @@ function fromAssigned(o: Order): Booking {
     total: o.total,
     cash: o.paymentStatus === 'UNPAID' && o.paymentMethod !== 'ONLINE',
     when: [o.deliveryDate, o.deliverySlot].filter(Boolean).join(' · ') || null,
+    fitsRoute: false,
+    carrying: 0,
   };
 }
 
@@ -103,7 +110,7 @@ function BookingCard({ b, total, payout, onClose, onDone }: { b: Booking; total:
           <div className="relative z-10 flex items-start justify-between gap-3">
             <div>
               <p className="inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-2.5 py-1 text-[0.7rem] font-extrabold uppercase text-forest-900">
-                <BellRing className="size-3.5 animate-pulse" /> {b.kind === 'offer' ? 'New booking for you' : 'Assigned to you'}
+                <BellRing className="size-3.5 animate-pulse" /> {b.fitsRoute ? 'Another order on your route' : b.kind === 'offer' ? 'New booking for you' : 'Assigned to you'}
               </p>
               <h2 id="booking-title" className="mt-2 font-mono text-xl font-bold">
                 {b.orderNumber}
@@ -138,6 +145,11 @@ function BookingCard({ b, total, payout, onClose, onDone }: { b: Booking; total:
               </span>
             </li>
           ))}
+          {b.fitsRoute && (
+            <li className="rounded-2xl bg-mint-100 p-3 text-sm font-bold text-forest-800" data-testid="booking-fits">
+              Same slot as the {b.carrying === 1 ? 'order' : `${b.carrying} orders`} you’re carrying, and it drops nearby. Take both in one trip.
+            </li>
+          )}
           {payout !== null && payout > 0 && (
             <li className="flex items-center gap-2 rounded-2xl bg-lime-300/40 p-3 text-sm font-bold text-forest-900">
               <IndianRupee className="size-4" /> You earn {formatINR(payout)} for this delivery

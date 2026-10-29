@@ -84,6 +84,8 @@ export interface AdminSettings {
   dispatchOfferSeconds: number;
   dispatchRadiusKm: number;
   dispatchMaxOffers: number;
+  batchMaxOrders: number;
+  batchRadiusKm: number;
   gstin: string | null;
   storeAddress: string | null;
   gstRatePercent: number;

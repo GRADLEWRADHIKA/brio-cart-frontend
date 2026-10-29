@@ -27,6 +27,12 @@ export default function LiveOps() {
   }, [data, focus]);
 
   const byStatus = (s: string) => data?.orders.filter((o) => o.status === s) ?? [];
+  /** Orders each rider is carrying (batched trips show as "2 orders"). */
+  const perRider = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const o of data?.orders ?? []) if (o.rider) n.set(o.rider.id, (n.get(o.rider.id) ?? 0) + 1);
+    return n;
+  }, [data]);
   const onRoad = byStatus('OUT_FOR_DELIVERY');
   const liveGps = onRoad.filter((o) => o.tracking?.source === 'LIVE').length;
 
@@ -69,7 +75,16 @@ export default function LiveOps() {
                       {o.customer.name} · {o.customer.areaName} · {formatINR(o.total)}
                     </p>
                     <p className="mt-1 flex items-center gap-1 text-xs text-charcoal-500">
-                      {o.rider ? <>Rider: {o.rider.name}</> : <span className="font-bold text-[#8a5a00]">No rider assigned</span>}
+                      {o.rider ? (
+                        <>
+                          Rider: {o.rider.name}
+                          {(perRider.get(o.rider.id) ?? 0) > 1 && (
+                            <span className="rounded-full bg-lime-300 px-1.5 py-0.5 text-[0.65rem] font-extrabold text-forest-900">{perRider.get(o.rider.id)} orders on this trip</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="font-bold text-[#8a5a00]">No rider assigned</span>
+                      )}
                       {o.tracking?.source === 'LIVE' && (
                         <span className="ml-auto inline-flex items-center gap-1 font-bold text-leaf-600">
                           <Radio className="size-3" /> GPS {o.tracking.location && formatDate(o.tracking.location.at).split(', ').pop()}

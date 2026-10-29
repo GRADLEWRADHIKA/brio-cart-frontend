@@ -44,6 +44,10 @@ export interface AvailableOrder {
   distanceKm: number | null;
   /** Offered to this rider alone (nearest-rider dispatch) until `expiresAt`. */
   offer: { expiresAt: string } | null;
+  /** The rider already holds orders and this one fits with them: same slot, dropping nearby. */
+  fitsRoute?: boolean;
+  /** How many orders the rider already holds. */
+  carrying?: number;
 }
 
 export interface ProductPage {
@@ -230,6 +234,8 @@ export interface Order {
     /** Rider views only (paise). */
     payout?: number | null;
   };
+  /** Rider views only: where this order sits in the rider's trip, and the Google Maps destination. */
+  route?: { stop: number; of: number; kind: 'PICKUP' | 'DROP'; navTo: string } | null;
   /** Customer may cancel (before pickup). */
   canCancel: boolean;
   rating: { stars: number; comment: string | null; at: string | null } | null;
