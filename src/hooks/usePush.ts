@@ -21,6 +21,25 @@ function keyBytes(base64url: string) {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 }
 
+function sameKey(a: ArrayBuffer | null, b: Uint8Array) {
+  if (!a) return false;
+  const x = new Uint8Array(a);
+  return x.length === b.length && x.every((v, i) => v === b[i]);
+}
+
+/** Browser push errors in words a customer or rider can act on. */
+export function pushErrorMessage(e: unknown) {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (/push service (error|not available)/i.test(msg)) {
+    const brave = (navigator as Navigator & { brave?: unknown }).brave !== undefined;
+    return brave
+      ? 'Brave blocks phone alerts by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, restart Brave and try again.'
+      : 'This browser couldn’t reach its notification service. Check that a VPN, firewall or antivirus isn’t blocking it, or use Google Chrome, then try again. Alerts inside the site still work.';
+  }
+  if (/permission denied/i.test(msg)) return 'Notifications are blocked for this site. Allow them in your browser’s site settings, then try again.';
+  return msg;
+}
+
 /** On sign-out: stop this device getting the account's alerts. */
 export async function forgetPushDevice() {
   if (!pushSupported() || !registration) return;
@@ -73,11 +92,27 @@ export function usePush() {
         return false;
       }
       const reg = await registerServiceWorker()!;
-      const key = await notificationsApi.pushKey();
-      const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) }));
+      await navigator.serviceWorker.ready;
+      const key = keyBytes(await notificationsApi.pushKey());
+      let sub = await reg.pushManager.getSubscription();
+      // A subscription made with another server key can't receive our pushes: replace it.
+      if (sub && !sameKey(sub.options.applicationServerKey, key)) {
+        await sub.unsubscribe().catch(() => undefined);
+        sub = null;
+      }
+      if (!sub) {
+        const subscribe = () => reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+        // The push service sometimes refuses the first attempt; one retry after a short pause.
+        sub = await subscribe().catch(async () => {
+          await new Promise((r) => setTimeout(r, 1500));
+          return subscribe();
+        });
+      }
       await notificationsApi.subscribePush(sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } });
       setState('on');
       return true;
+    } catch (e) {
+      throw new Error(pushErrorMessage(e), { cause: e });
     } finally {
       setBusy(false);
     }
