@@ -15,7 +15,7 @@ export default function HomePage() {
   return (
     <>
       <HomeTop />
-      <BannerCarousel className="container-page mb-10 mt-6 sm:mb-14" />
+      <BannerCarousel className="container-page mb-10 sm:mb-14" />
       <Hero />
       <ProduceTicker />
       {data?.campaign && <CampaignBanner campaign={data.campaign} />}

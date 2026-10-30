@@ -35,7 +35,7 @@ export function HomeTop() {
   tiles.splice(Math.min(2, tiles.length), 0, { key: 'essentials', to: '/shop?collection=essentials', name: 'Daily Essentials', image: assetUrl('/uploads/products/onion.webp'), plate: 'bg-turmeric-100', Icon: ShoppingBasket });
 
   return (
-    <section className="container-page pt-4 sm:pt-6" aria-label="Shop by category">
+    <section className="container-page pb-8 pt-4 sm:pb-10 sm:pt-6" aria-label="Shop by category">
       <div className="space-y-3 md:hidden">
         <LocationPicker />
         <SearchBox />
