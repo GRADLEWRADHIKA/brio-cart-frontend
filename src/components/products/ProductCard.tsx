@@ -7,6 +7,7 @@ import { useAddToCart } from '@/hooks/useAddToCart';
 import { Price, ProductImage, QuantityStepper } from '@/components/ui/misc';
 import { cn, discountPercent } from '@/utils';
 import { WishlistButton } from './WishlistButton';
+import { ProductRating } from './ProductRating';
 import { tintFor } from './tints';
 
 /** Products the store has put in the Bestsellers collection. */
@@ -87,6 +88,7 @@ export const ProductCard = memo(function ProductCard({ product, eager, className
           </Link>
         )}
         {product.highlight && <p className={cn('mt-1 truncate text-[0.72rem] font-semibold', tint.text)}>{product.highlight}</p>}
+        <ProductRating product={product} className="mt-1" />
 
         <div className="mt-2.5 min-h-8">
           {product.variants.length > 1 ? (

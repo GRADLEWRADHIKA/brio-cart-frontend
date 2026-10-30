@@ -25,6 +25,12 @@ export interface Product {
   inStock: boolean;
   fromPrice: number | null;
   variants: Variant[];
+  /** Customers' quality ratings after delivery; null until rated. */
+  rating?: { average: number; count: number } | null;
+  /** How many different customers have received it. */
+  boughtBy?: number;
+  /** Product page only: main category first, e.g. Fresh › Vegetables › Exotic. */
+  categoryPath?: Array<{ slug: string; name: string }>;
 }
 
 /** A confirmed order no rider has taken yet (rider open pool). */
@@ -66,6 +72,14 @@ export interface Category {
   nameHi: string | null;
   description: string | null;
   imageUrl: string | null;
+  /** The category's picture, else its best-selling product's. */
+  coverUrl?: string | null;
+  /** Sub-category of this one; null for a main category. */
+  parentId?: string | null;
+  hasChildren?: boolean;
+  /** A main category shown as a home-page tile right now (festival-wise dates). */
+  onHome?: boolean;
+  /** Includes its sub-categories' products. */
   productCount: number;
 }
 
@@ -258,6 +272,8 @@ export interface Order {
     unitPrice: number;
     quantity: number;
     lineTotal: number;
+    /** The customer's quality rating for this item (1–5), after delivery. */
+    rating?: number | null;
   }>;
   /** Store statuses plus rider steps (ASSIGNED, PICKED_UP, RIDER_REJECTED, DELIVERY_FAILED, …). */
   events: Array<{ status: string; note: string | null; at: string }>;
@@ -405,4 +421,15 @@ export interface PublicShop {
   closedNote?: string | null;
   prepMinutes: number;
   productCount?: number;
+}
+
+/** A product banner ("ad") on the home page or a category page. */
+export interface Banner {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  imageUrl: string | null;
+  ctaLabel: string;
+  href: string;
+  theme: 'forest' | 'lime' | 'tomato' | 'turmeric' | string;
 }

@@ -1,7 +1,7 @@
 import type { CheckoutInput, OrderAddressInput, RiderRegisterInput, ShopRegisterInput } from '@shared';
 import { api, request } from './client';
 import { API_BASE } from '@/config/env';
-import type { Address, AppNotification, AvailableOrder, CartValidation, Category, NotificationPage, Order, Product, ProductPage, PublicShop, ReturnRequestRow, RiderCash, RiderEarnings, SlotDay, TicketView, WalletView, RiderProfile, StoreInfo, User } from '@/types';
+import type { Address, AppNotification, Banner, AvailableOrder, CartValidation, Category, NotificationPage, Order, Product, ProductPage, PublicShop, ReturnRequestRow, RiderCash, RiderEarnings, SlotDay, TicketView, WalletView, RiderProfile, StoreInfo, User } from '@/types';
 
 export interface ProductFilters {
   category?: string;
@@ -16,6 +16,8 @@ export interface ProductFilters {
 }
 
 export const catalogApi = {
+  /** Product banners for the home page, or a category's page. */
+  banners: (category?: string) => api.get<{ items: Banner[] }>('/banners', { category }).then((r) => r.items),
   store: () => api.get<StoreInfo>('/store'),
   categories: () => api.get<{ items: Category[] }>('/categories').then((r) => r.items),
   products: (f: ProductFilters, signal?: AbortSignal) =>
@@ -49,8 +51,8 @@ export const orderApi = {
     api.get<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}`, { key }).then((r) => r.order),
   demoPay: (orderNumber: string, method: 'UPI' | 'CARD' | 'NETBANKING' | 'WALLET', key?: string) =>
     api.post<{ order: Order; reference: string }>(`/orders/${encodeURIComponent(orderNumber)}/demo-pay`, { key, method }),
-  rate: (orderNumber: string, stars: number, comment?: string, key?: string) =>
-    api.post<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}/rate`, { key, stars, comment }).then((r) => r.order),
+  rate: (orderNumber: string, stars: number, comment?: string, key?: string, items?: Array<{ itemId: string; stars: number }>) =>
+    api.post<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}/rate`, { key, stars, comment, items }).then((r) => r.order),
   cancel: (orderNumber: string, key?: string) =>
     api.post<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}/cancel`, { key }).then((r) => r.order),
   updateAddress: (orderNumber: string, data: OrderAddressInput, key?: string) =>

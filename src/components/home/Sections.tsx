@@ -1,14 +1,13 @@
 import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, HandHeart, IndianRupee, MapPin, PackageCheck, Phone, ShoppingBasket, Sprout, Store } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, HandHeart, IndianRupee, MapPin, PackageCheck, Phone, ShoppingBasket, Sprout, Store } from 'lucide-react';
 import { buildWhatsAppUrl } from '@shared/core';
 import { catalogApi, type ProductFilters } from '@/api/endpoints';
 import { ProductCard, ProductCardSkeleton } from '@/components/products/ProductCard';
 import { SectionHeading } from '@/components/ui/misc';
 import { WhatsAppIcon } from '@/components/ui/Brand';
-import { useCategories, useContact, useStoreInfo } from '@/hooks/useStoreInfo';
-import { assetUrl } from '@/config/env';
+import { useContact, useStoreInfo } from '@/hooks/useStoreInfo';
 import { cn, openExternal } from '@/utils';
 import stallPhoto from '@/assets/brand/brio-cart-stall.jpg';
 
@@ -40,71 +39,6 @@ export function ProduceTicker() {
   );
 }
 
-/* ---------------- Categories ---------------- */
-const CATEGORY_ART: Record<string, { bg: string; accent: string; images: string[]; to?: string }> = {
-  'fresh-vegetables': { bg: 'bg-mint-100', accent: 'text-forest-700', images: ['carrot', 'cauliflower', 'green-capsicum-bell-pepper'] },
-  'fresh-fruits': { bg: 'bg-peach-100', accent: 'text-[#9a3f12]', images: ['kinnaur-apple', 'papaya', 'banana'] },
-  'dairy-milk': { bg: 'bg-sky-100', accent: 'text-[#1e4f78]', images: ['paneer', 'gyan-cup-curd', 'amul-gold-full-cream-milk'] },
-  essentials: { bg: 'bg-turmeric-100', accent: 'text-[#7a4f00]', images: ['onion', 'garlic', 'potato'], to: '/shop?collection=essentials' },
-};
-
-export function CategoryShowcase() {
-  const { data: categories } = useCategories();
-  const find = (slug: string) => categories?.find((c) => c.slug === slug);
-  const tiles = [
-    { key: 'fresh-vegetables', title: 'Fresh Vegetables', hi: 'ताज़ी सब्ज़ियाँ', sub: find('fresh-vegetables')?.productCount },
-    { key: 'fresh-fruits', title: 'Fresh Fruits', hi: 'ताज़े फल', sub: find('fresh-fruits')?.productCount },
-    { key: 'dairy-milk', title: 'Dairy & Milk', hi: 'डेयरी और दूध', sub: find('dairy-milk')?.productCount },
-    { key: 'essentials', title: 'Daily Essentials', hi: 'रोज़ की ज़रूरतें', sub: undefined },
-  ];
-
-  return (
-    <section id="categories" className="container-page scroll-mt-28 pt-16 sm:pt-20" aria-labelledby="cat-title">
-      <SectionHeading eyebrow="Shop by category" title={<span id="cat-title">Everything your kitchen needs, every morning</span>} />
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:grid-rows-[auto]">
-        {tiles.map((t, i) => {
-          const art = CATEGORY_ART[t.key]!;
-          return (
-            <Link
-              key={t.key}
-              to={art.to ?? `/shop?category=${t.key}`}
-              className={cn(
-                'group relative flex min-h-[13rem] flex-col overflow-hidden rounded-[1.75rem] p-5 transition-all duration-500 ease-out hover:-translate-y-1 hover:shadow-lift sm:min-h-[17rem] sm:p-6',
-                art.bg,
-                i === 0 && 'lg:row-span-1',
-              )}
-            >
-              <p lang="hi" className={cn('font-deva text-sm font-bold', art.accent)}>{t.hi}</p>
-              <h3 className="mt-1 font-display text-[1.45rem] font-semibold leading-tight text-forest-900 sm:text-[1.75rem]">{t.title}</h3>
-              {t.sub ? <p className="mt-1 text-xs font-bold text-charcoal-500">{t.sub} items</p> : <p className="mt-1 text-xs font-bold text-charcoal-500">Kitchen staples</p>}
-              <span className="mt-3 grid size-9 place-items-center rounded-full bg-white/70 text-forest-800 transition-all duration-300 group-hover:bg-forest-800 group-hover:text-ivory-50">
-                <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:rotate-45" />
-              </span>
-              <div className="pointer-events-none absolute bottom-0 right-0 aspect-square w-[78%] translate-x-[14%] translate-y-[14%] sm:w-[68%]">
-                {art.images.map((img, j) => (
-                  <img
-                    key={img}
-                    src={assetUrl(`/uploads/products/${img}.webp`) ?? ''}
-                    alt=""
-                    loading="lazy"
-                    className={cn(
-                      'absolute rounded-full object-cover shadow-[0_18px_40px_-14px_rgb(12_42_27/0.45)] ring-4 ring-white/80 transition-transform duration-700 ease-out',
-                      j === 0 && 'bottom-0 right-0 z-10 size-[72%] group-hover:-translate-x-2 group-hover:-translate-y-2 group-hover:scale-105',
-                      j === 1 && 'bottom-[12%] left-0 size-[44%] group-hover:-translate-x-3 group-hover:-rotate-6',
-                      j === 2 && 'right-[8%] top-0 size-[40%] group-hover:-translate-y-3 group-hover:rotate-6',
-                    )}
-                  />
-                ))}
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-/* ---------------- Product rails ---------------- */
 export function ProductRail({
   eyebrow,
   title,

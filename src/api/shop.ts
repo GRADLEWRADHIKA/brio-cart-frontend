@@ -104,7 +104,7 @@ export const shopApi = {
   newDeliveryCode: (id: string) => api.post<{ order: ShopOrder }>(`/shop/orders/${id}/delivery-code`).then((r) => r.order),
 
   // Catalogue: same shapes as the store dashboard, scoped to this shop by the server.
-  categories: () => api.get<{ items: Array<{ id: string; name: string }> }>('/categories').then((r) => r.items),
+  categories: () => api.get<{ items: Array<{ id: string; name: string; parentId?: string | null }> }>('/categories').then((r) => r.items),
   products: (q: { q?: string; category?: string; archived?: string }) => api.get<{ items: AdminProduct[] }>('/shop/products', q).then((r) => r.items),
   product: (id: string) => api.get<{ product: AdminProduct }>(`/shop/products/${id}`).then((r) => r.product),
   createProduct: (p: ProductPayload) => api.post<{ product: AdminProduct }>('/shop/products', p).then((r) => r.product),

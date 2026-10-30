@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/misc';
 import { useCategories } from '@/hooks/useStoreInfo';
 import { cn } from '@/utils';
+import { mainCategories, pathOf, subCategories } from '@/utils/categories';
+import { BannerCarousel } from '@/components/home/BannerCarousel';
 
 const SORTS = [
   { value: 'relevance', label: 'Recommended' },
@@ -41,6 +43,8 @@ export default function ShopPage() {
   const first = query.data?.pages[0];
 
   const category = categories?.find((c) => c.slug === filters.category);
+  // Fresh › Vegetables › Exotic: the main category drives the top row, sub-categories get rows below.
+  const path = pathOf(categories, category?.id);
   const collection = COLLECTIONS.find((c) => c.key === filters.collection);
   const title = filters.q
     ? `Results for “${filters.q}”`
@@ -77,6 +81,12 @@ export default function ShopPage() {
     row.scrollTo({ left: row.scrollLeft + offset - (row.clientWidth - chip.offsetWidth) / 2, behavior: 'smooth' });
   }, [active]);
 
+  const subChip = (active: boolean) =>
+    cn(
+      'shrink-0 rounded-full border px-3.5 py-1.5 text-[0.8rem] font-bold transition',
+      active ? 'border-forest-700 bg-mint-100 text-forest-800' : 'border-dashed border-line bg-white/70 text-charcoal-600 hover:border-forest-700/40',
+    );
+
   const popularityNote = filters.sort === 'popular' && first && !first.hasPopularityData;
 
   return (
@@ -84,7 +94,20 @@ export default function ShopPage() {
       <section className="border-b border-line bg-ivory-100">
         <div className="container-page py-8 sm:py-12">
           <nav aria-label="Breadcrumb" className="text-sm text-charcoal-500">
-            <Link to="/" className="hover:text-forest-700">Home</Link> <span aria-hidden>/</span> <span className="text-charcoal-700">Shop</span>
+            <Link to="/" className="hover:text-forest-700">Home</Link> <span aria-hidden>/</span>{' '}
+            {path.length ? (
+              <>
+                <Link to="/shop" className="hover:text-forest-700">Shop</Link>
+                {path.map((c, i) => (
+                  <span key={c.id}>
+                    {' '}<span aria-hidden>/</span>{' '}
+                    {i === path.length - 1 ? <span className="text-charcoal-700">{c.name}</span> : <Link to={`/shop?category=${c.slug}`} className="hover:text-forest-700">{c.name}</Link>}
+                  </span>
+                ))}
+              </>
+            ) : (
+              <span className="text-charcoal-700">Shop</span>
+            )}
           </nav>
           <h1 className="mt-3 font-display text-4xl font-semibold text-forest-900 sm:text-5xl">{title}</h1>
           {subtitle && <p className="mt-2 max-w-xl text-charcoal-500">{subtitle}</p>}
@@ -93,12 +116,12 @@ export default function ShopPage() {
 
       <div className="sticky top-[calc(4.5rem+env(safe-area-inset-top))] z-30 border-b border-line bg-ivory-50/90 backdrop-blur-xl lg:top-[7.5rem]">
         <div className="container-page flex flex-col gap-3 py-3 lg:flex-row lg:flex-wrap lg:items-center">
-          <div className="no-scrollbar -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0" ref={chipRow} role="group" aria-label="Filter by category">
+          <div className="no-scrollbar -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 lg:mx-0 lg:min-w-0 lg:flex-1 lg:flex-wrap lg:overflow-visible lg:px-0" ref={chipRow} role="group" aria-label="Filter by category">
             <button type="button" className={chip(!filters.category && !filters.collection)} onClick={() => update({ category: undefined, collection: undefined, page: undefined })} aria-pressed={!filters.category && !filters.collection}>
               All
             </button>
-            {categories?.map((c) => (
-              <button key={c.id} type="button" className={chip(filters.category === c.slug)} onClick={() => update({ category: c.slug, collection: undefined })} aria-pressed={filters.category === c.slug}>
+            {mainCategories(categories).map((c) => (
+              <button key={c.id} type="button" className={chip(path[0]?.id === c.id)} onClick={() => update({ category: c.slug, collection: undefined })} aria-pressed={path[0]?.id === c.id}>
                 {c.name}
               </button>
             ))}
@@ -108,7 +131,25 @@ export default function ShopPage() {
             {/* Browsers drop a scroll row's end padding: keep a gap after the last chip on phones. */}
             <span aria-hidden className="w-2 shrink-0 lg:hidden" />
           </div>
-          <div className="flex shrink-0 items-center gap-2 lg:ml-auto">
+          {path.slice(0, 2).map((parent, level) => {
+            const kids = subCategories(categories, parent.id);
+            if (!kids.length) return null;
+            const current = path[level + 1];
+            return (
+              <div key={parent.id} className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:order-last lg:mx-0 lg:basis-full lg:flex-wrap lg:px-0" role="group" aria-label={`${parent.name}: sub-categories`} data-testid="subcategory-row">
+                <button type="button" className={subChip(!current)} onClick={() => update({ category: parent.slug })} aria-pressed={!current}>
+                  All {parent.name}
+                </button>
+                {kids.map((k) => (
+                  <button key={k.id} type="button" className={subChip(current?.id === k.id)} onClick={() => update({ category: k.slug })} aria-pressed={current?.id === k.id}>
+                    {k.name}
+                  </button>
+                ))}
+                <span aria-hidden className="w-2 shrink-0 lg:hidden" />
+              </div>
+            );
+          })}
+          <div className="flex shrink-0 items-center gap-2 lg:ml-auto lg:self-start">
             <label className="flex h-10 cursor-pointer items-center gap-2 rounded-full border border-line bg-white px-3.5 text-sm font-bold text-charcoal-700">
               <input type="checkbox" checked={!!filters.inStock} onChange={(e) => update({ inStock: e.target.checked ? 'true' : undefined })} className="size-4 accent-forest-700" />
               In stock only
@@ -129,6 +170,7 @@ export default function ShopPage() {
       </div>
 
       <div className="container-page pt-6">
+        {filters.category && !filters.q && <BannerCarousel category={filters.category} className="mb-6" />}
         <p className="mb-4 text-sm font-semibold text-charcoal-500" aria-live="polite">
           {query.isLoading ? 'Loading products…' : `${first?.total ?? 0} product${first?.total === 1 ? '' : 's'}`}
           {popularityNote && ' · Popularity ranking will appear once orders come in; showing our recommended order for now.'}

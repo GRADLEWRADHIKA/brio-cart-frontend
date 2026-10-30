@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { Activity, Banknote, BarChart3, Bell, CalendarDays, FileCheck, Truck, LifeBuoy, Bike, Boxes, Clock, Undo2, ExternalLink, LayoutDashboard, LogOut, Map as MapIcon, MapPin, Menu, Package, ScrollText, Settings, ShoppingCart, Store, Tag, Tags, UserCheck, Users as UsersIcon, X } from 'lucide-react';
+import { Activity, Banknote, BarChart3, Bell, CalendarDays, FileCheck, Truck, LifeBuoy, Bike, Boxes, Clock, Undo2, ExternalLink, LayoutDashboard, LogOut, Map as MapIcon, MapPin, Megaphone, Menu, Package, ScrollText, Settings, ShoppingCart, Store, Tag, Tags, UserCheck, Users as UsersIcon, X } from 'lucide-react';
 import { hasPermission, ROLE_LABELS, type Permission } from '@shared/core';
 import { useAuth } from '@/hooks/useAuth';
 import { Logo } from '@/components/ui/Brand';
@@ -16,6 +16,7 @@ const OrderDetail = lazy(() => import('./OrderDetail'));
 const Products = lazy(() => import('./Products'));
 const ProductEditor = lazy(() => import('./ProductEditor'));
 const Categories = lazy(() => import('./Categories'));
+const Banners = lazy(() => import('./Banners'));
 const Areas = lazy(() => import('./Areas'));
 const StoreSettingsPage = lazy(() => import('./StoreSettings'));
 const LiveOps = lazy(() => import('./LiveOps'));
@@ -57,6 +58,7 @@ const NAV: Array<{ to: string; label: string; icon: typeof Bell; end?: boolean; 
   { to: '/admin/products', label: 'Products', icon: Package, permission: 'catalog:view' },
   { to: '/admin/stock', label: 'Stock', icon: Boxes, permission: 'stock:view' },
   { to: '/admin/categories', label: 'Categories', icon: Tags, permission: 'category:manage' },
+  { to: '/admin/banners', label: 'Product banners', icon: Megaphone, permission: 'settings:manage' },
   { to: '/admin/slots', label: 'Delivery slots', icon: Clock, permission: 'slot:manage' },
   { to: '/admin/areas', label: 'Delivery areas', icon: MapPin, permission: 'settings:manage' },
   { to: '/admin/settings', label: 'Settings & campaigns', icon: Settings, permission: 'settings:manage' },
@@ -158,6 +160,7 @@ function Shell() {
                 <Route path="slots" element={guard('slot:manage', <DeliverySlots />)} />
                 <Route path="stock" element={guard('stock:view', <Stock />)} />
                 <Route path="categories" element={guard('category:manage', <Categories />)} />
+                <Route path="banners" element={guard('settings:manage', <Banners />)} />
                 <Route path="areas" element={guard('settings:manage', <Areas />)} />
                 <Route path="settings" element={guard('settings:manage', <StoreSettingsPage />)} />
                 <Route path="live" element={guard('order:view_all', <LiveOps />)} />

@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { Hero } from '@/components/home/Hero';
 import { CampaignBanner } from '@/components/home/CampaignBanner';
-import { CategoryShowcase, HowItWorks, ProduceTicker, ProductRail, ServiceAreas, WhatsAppCta, WhyBrio } from '@/components/home/Sections';
+import { BannerCarousel } from '@/components/home/BannerCarousel';
+import { HomeTop } from '@/components/home/HomeTop';
+import { HowItWorks, ProduceTicker, ProductRail, ServiceAreas, WhatsAppCta, WhyBrio } from '@/components/home/Sections';
 import { useStoreInfo } from '@/hooks/useStoreInfo';
 
 export default function HomePage() {
@@ -12,9 +14,10 @@ export default function HomePage() {
 
   return (
     <>
+      <HomeTop />
+      <BannerCarousel className="container-page mb-10 mt-6 sm:mb-14" />
       <Hero />
       <ProduceTicker />
-      <CategoryShowcase />
       {data?.campaign && <CampaignBanner campaign={data.campaign} />}
       <ProductRail eyebrow="Customer favourites" title="Bestsellers" filters={{ collection: 'bestsellers' }} href="/shop?collection=bestsellers" />
       <ProductRail eyebrow="Just in" title="Fresh Picks" filters={{ collection: 'fresh-picks' }} href="/shop?collection=fresh-picks" tone="mint" />

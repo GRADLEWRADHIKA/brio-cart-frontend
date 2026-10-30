@@ -12,6 +12,7 @@ import { buildWhatsAppUrl } from '@shared/core';
 import { cn, openExternal, timeToCutoff } from '@/utils';
 import { SearchBox } from './SearchBox';
 import { useWishlist } from '@/store/wishlist';
+import { mainCategories } from '@/utils/categories';
 import { LocationPicker } from './LocationPicker';
 
 function CartButton({ className }: { className?: string }) {
@@ -118,7 +119,7 @@ export function Header() {
                 All groceries
               </NavLink>
             </li>
-            {categories?.map((c) => (
+            {mainCategories(categories).map((c) => (
               <li key={c.id}>
                 <Link
                   to={`/shop?category=${c.slug}`}
@@ -190,7 +191,7 @@ function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
           {[
             { to: '/', label: 'Home' },
             { to: '/shop', label: 'All groceries' },
-            ...(categories ?? []).map((c) => ({ to: `/shop?category=${c.slug}`, label: c.name })),
+            ...mainCategories(categories).map((c) => ({ to: `/shop?category=${c.slug}`, label: c.name })),
             { to: '/shop?collection=essentials', label: 'Daily Essentials' },
             { to: '/shops', label: 'Local shops' },
             { to: '/saved', label: 'Saved items' },

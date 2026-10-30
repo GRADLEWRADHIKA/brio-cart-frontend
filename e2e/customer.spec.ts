@@ -5,8 +5,10 @@ test.describe('customer journey', () => {
   test('homepage shows the hero, categories, campaign and product rails @mobile', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Your Everyday');
-    await expect(page.getByRole('heading', { name: 'Fresh Vegetables' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Daily Essentials' })).toBeVisible();
+    // Category tiles at the top of the front page, Daily Essentials third.
+    const tiles = page.getByTestId('home-category-tiles');
+    await expect(tiles.getByRole('link', { name: 'Fresh Vegetables' })).toBeVisible();
+    await expect(tiles.getByRole('link').nth(2)).toHaveText('Daily Essentials');
     // The seeded Navratri campaign runs until 21 Oct 2026 (IST); after that the banner is correctly hidden.
     if (Date.now() <= new Date('2026-10-21T23:59:59+05:30').getTime()) {
       await expect(page.getByText('इस नवरात्रि, ताज़गी और अच्छी गुणवत्ता के साथ करें शुभ शुरुआत!')).toBeVisible();
@@ -20,7 +22,7 @@ test.describe('customer journey', () => {
 
   test('browse a category, search, and open product details', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('link', { name: /Fresh Fruits.*items/ }).click();
+    await page.getByTestId('home-category-tiles').getByRole('link', { name: 'Fresh Fruits' }).click();
     await expect(page).toHaveURL(/category=fresh-fruits/);
     await expect(page.getByRole('heading', { level: 1, name: 'Fresh Fruits' })).toBeVisible();
     await expect(page.getByTestId('product-card').first()).toBeVisible();

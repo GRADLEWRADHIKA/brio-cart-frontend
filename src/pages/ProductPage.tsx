@@ -12,6 +12,7 @@ import { useStoreInfo } from '@/hooks/useStoreInfo';
 import { BestSellerBadge, isBestSeller, ProductCard } from '@/components/products/ProductCard';
 import { StockAlertButton } from '@/components/products/StockAlertButton';
 import { WishlistButton } from '@/components/products/WishlistButton';
+import { ProductRating } from '@/components/products/ProductRating';
 import { tintFor } from '@/components/products/tints';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { EmptyState, Price, ProductImage, QuantityStepper, SectionHeading } from '@/components/ui/misc';
@@ -72,8 +73,12 @@ export default function ProductPage() {
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-sm text-charcoal-500">
           <Link to="/" className="hover:text-forest-700">Home</Link>
           <ChevronRight className="size-3.5" />
-          <Link to={`/shop?category=${product.category.slug}`} className="hover:text-forest-700">{product.category.name}</Link>
-          <ChevronRight className="size-3.5" />
+          {(product.categoryPath ?? [product.category]).map((c) => (
+            <span key={c.slug} className="contents">
+              <Link to={`/shop?category=${c.slug}`} className="hover:text-forest-700">{c.name}</Link>
+              <ChevronRight className="size-3.5" />
+            </span>
+          ))}
           <span className="truncate text-charcoal-700">{product.name}</span>
         </nav>
       </div>
@@ -111,6 +116,7 @@ export default function ProductPage() {
             </p>
           )}
           {product.highlight && <p className={cn('mt-3 inline-flex rounded-full bg-white px-3 py-1 text-sm font-bold ring-1', tint.text, tint.ring)}>{product.highlight}</p>}
+          <ProductRating product={product} size="lg" className="mt-3" />
 
           <div className="mt-6">
             <Price price={variant.price} mrp={variant.mrp} size="lg" />

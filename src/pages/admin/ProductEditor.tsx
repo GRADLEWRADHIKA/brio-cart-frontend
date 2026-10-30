@@ -10,6 +10,7 @@ import { Card, PageHeader, Toggle } from '@/components/admin/kit';
 import { Checkbox, SelectField, TextAreaField, TextField } from '@/components/forms/Field';
 import { Button } from '@/components/ui/Button';
 import { useCatalogScope } from '@/components/admin/CatalogScope';
+import { categoryOptions } from '@/utils/categories';
 import { ProductImage } from '@/components/ui/misc';
 
 interface FormValues {
@@ -172,7 +173,7 @@ Reason (shown to the shop):`);
               <TextField label="Hindi name" optional lang="hi" {...register('nameHi')} />
               <SelectField label="Category" {...register('categoryId', { required: 'Choose a category' })} error={e.categoryId?.message}>
                 <option value="">Choose…</option>
-                {categories?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {categoryOptions(categories).map((o) => <option key={o.category.id} value={o.category.id}>{o.label}</option>)}
               </SelectField>
               <TextField label="Highlight" optional placeholder="e.g. Vitamin C Rich" maxLength={60} {...register('highlight')} />
               <TextAreaField label="Description" optional rows={4} hint="Line breaks are kept as you type them." {...register('description')} className="sm:col-span-2" />

@@ -3,6 +3,7 @@ import { Clock, Mail, MapPin, Phone } from 'lucide-react';
 import { buildWhatsAppUrl } from '@shared/core';
 import { useCategories, useContact, useStoreInfo } from '@/hooks/useStoreInfo';
 import { Logo, WhatsAppIcon } from '@/components/ui/Brand';
+import { mainCategories } from '@/utils/categories';
 import { openExternal } from '@/utils';
 
 export function Footer() {
@@ -35,7 +36,7 @@ export function Footer() {
         <div>
           <h2 className="eyebrow text-lime-300">Shop</h2>
           <ul className="mt-4 space-y-2.5 text-ivory-50/80">
-            {categories?.map((c) => (
+            {mainCategories(categories).map((c) => (
               <li key={c.id}>
                 <Link to={`/shop?category=${c.slug}`} className="hover:text-white">
                   {c.name}

@@ -8,6 +8,7 @@ import { PageHeader, Toggle, td, th } from '@/components/admin/kit';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { ProductImage } from '@/components/ui/misc';
 import { useCatalogScope } from '@/components/admin/CatalogScope';
+import { categoryOptions } from '@/utils/categories';
 import { cn } from '@/utils';
 
 export default function Products() {
@@ -53,7 +54,7 @@ Reason (shown to the shop):`);
         </label>
         <select value={category} onChange={(e) => setCategory(e.target.value)} className="h-10 rounded-full border border-line bg-white px-4 text-sm font-bold" aria-label="Category">
           <option value="">All categories</option>
-          {categories?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {categoryOptions(categories).map((o) => <option key={o.category.id} value={o.category.id}>{o.label}</option>)}
         </select>
         <select value={archived} onChange={(e) => setArchived(e.target.value as 'true' | 'false')} className="h-10 rounded-full border border-line bg-white px-4 text-sm font-bold" aria-label="Status">
           <option value="false">Active</option>

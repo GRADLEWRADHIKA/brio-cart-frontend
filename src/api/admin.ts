@@ -37,7 +37,39 @@ export interface AdminCategory {
   imageUrl: string | null;
   sortOrder: number;
   isActive: boolean;
-  _count: { products: number };
+  parentId: string | null;
+  showOnHome: boolean;
+  homeFrom: string | null;
+  homeUntil: string | null;
+  _count: { products: number; children: number };
+}
+
+export interface BannerInput {
+  title: string;
+  subtitle: string | null;
+  imageUrl: string | null;
+  ctaLabel: string | null;
+  productId: string | null;
+  categoryId: string | null;
+  showOnHome: boolean;
+  theme: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+/** A product banner as staff see it: the public fields plus its settings. */
+export interface AdminBanner extends Omit<BannerInput, 'imageUrl' | 'ctaLabel'> {
+  id: string;
+  imageUrl: string | null;
+  rawImageUrl: string | null;
+  ctaLabel: string;
+  rawCtaLabel: string | null;
+  href: string;
+  productName: string | null;
+  productLive: boolean;
+  categoryName: string | null;
 }
 
 export interface AdminArea {
@@ -239,6 +271,10 @@ export const adminApi = {
     fd.append('image', file);
     return request<{ url: string }>('/admin/uploads', { method: 'POST', body: fd });
   },
+
+  banners: () => api.get<{ items: AdminBanner[]; now: string }>('/admin/banners').then((r) => r.items),
+  saveBanner: (b: BannerInput, id?: string) => (id ? api.put(`/admin/banners/${id}`, b) : api.post('/admin/banners', b)),
+  deleteBanner: (id: string) => api.delete<{ ok: true }>(`/admin/banners/${id}`),
 
   categories: () => api.get<{ items: AdminCategory[] }>('/admin/categories').then((r) => r.items),
   saveCategory: (c: Partial<AdminCategory>, id?: string) => (id ? api.put(`/admin/categories/${id}`, c) : api.post('/admin/categories', c)),

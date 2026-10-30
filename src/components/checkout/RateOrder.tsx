@@ -14,8 +14,11 @@ export function RateOrder({ order, accessKey, queryKey }: { order: Order; access
   const [stars, setStars] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState('');
+  /** Quality per item (optional): becomes the product's rating. */
+  const [itemStars, setItemStars] = useState<Record<string, number>>({});
   const rate = useMutation({
-    mutationFn: () => orderApi.rate(order.orderNumber, stars, comment.trim() || undefined, accessKey),
+    mutationFn: () =>
+      orderApi.rate(order.orderNumber, stars, comment.trim() || undefined, accessKey, Object.entries(itemStars).map(([itemId, s]) => ({ itemId, stars: s }))),
     onSuccess: (o) => qc.setQueryData(queryKey, o),
   });
 
@@ -62,6 +65,33 @@ export function RateOrder({ order, accessKey, queryKey }: { order: Order; access
       </div>
       {stars > 0 && (
         <>
+          <div className="mt-5" data-testid="rate-items">
+            <p className="text-sm font-extrabold text-charcoal-700">Rate the quality of each item <span className="font-semibold text-charcoal-400">(optional)</span></p>
+            <ul className="mt-2 divide-y divide-line rounded-2xl border border-line">
+              {order.items.filter((it) => it.productId).map((it) => (
+                <li key={it.id} className="flex flex-wrap items-center gap-3 p-3">
+                  <span className="min-w-0 flex-1 text-sm font-bold">
+                    {it.productName} <span className="font-semibold text-charcoal-500">· {it.variantLabel}</span>
+                  </span>
+                  <span className="flex" role="radiogroup" aria-label={`Quality of ${it.productName}`}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        role="radio"
+                        aria-checked={itemStars[it.id] === n}
+                        aria-label={`${it.productName}: ${n} star${n > 1 ? 's' : ''}`}
+                        onClick={() => setItemStars((m) => ({ ...m, [it.id]: n }))}
+                        className="rounded-full p-0.5 transition-transform hover:scale-110"
+                      >
+                        <Star className={cn('size-6', n <= (itemStars[it.id] ?? 0) ? 'fill-turmeric-400 text-turmeric-400' : 'text-ivory-300')} />
+                      </button>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
