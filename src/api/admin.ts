@@ -258,7 +258,7 @@ export const adminApi = {
   setStatus: (id: string, status: OrderStatus, note?: string) => api.patch<{ order: Order }>(`/admin/orders/${id}/status`, { status, note }).then((r) => r.order),
   setPayment: (id: string, paymentStatus: 'PAID' | 'UNPAID') => api.patch<{ order: Order }>(`/admin/orders/${id}/payment`, { paymentStatus }).then((r) => r.order),
 
-  products: (q: { q?: string; category?: string; archived?: string }) => api.get<{ items: AdminProduct[] }>('/admin/products', q).then((r) => r.items),
+  products: (q: { q?: string; category?: string; archived?: string; /** 'all': local shops' products too. */ scope?: 'own' | 'all' }) => api.get<{ items: AdminProduct[] }>('/admin/products', q).then((r) => r.items),
   product: (id: string) => api.get<{ product: AdminProduct }>(`/admin/products/${id}`).then((r) => r.product),
   createProduct: (p: ProductPayload) => api.post<{ product: AdminProduct }>('/admin/products', p).then((r) => r.product),
   updateProduct: (id: string, p: ProductPayload) => api.put<{ product: AdminProduct }>(`/admin/products/${id}`, p).then((r) => r.product),

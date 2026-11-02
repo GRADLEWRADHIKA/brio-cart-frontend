@@ -1,0 +1,17 @@
+# Brio Cart
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /seller
+Disallow: /rider
+Disallow: /account
+Disallow: /checkout
+Disallow: /pay/
+Disallow: /notifications
+Disallow: /orders/
+Disallow: /setup
+Allow: /api/sitemap.xml
+Disallow: /api/
+
+# Built live from the catalogue. Update this address if the site moves to its own domain.
+Sitemap: https://3.231.34.80.sslip.io/api/sitemap.xml

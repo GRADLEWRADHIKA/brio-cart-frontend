@@ -9,6 +9,7 @@ import { useCart } from '@/store/cart';
 import { useUi } from '@/store/ui';
 import { useAddToCart } from '@/hooks/useAddToCart';
 import { useStoreInfo } from '@/hooks/useStoreInfo';
+import { useNoIndex } from '@/hooks/useNoIndex';
 import { BestSellerBadge, isBestSeller, ProductCard } from '@/components/products/ProductCard';
 import { StockAlertButton } from '@/components/products/StockAlertButton';
 import { WishlistButton } from '@/components/products/WishlistButton';
@@ -39,6 +40,9 @@ export default function ProductPage() {
   const variant = product?.variants.find((v) => v.id === variantId) ?? product?.variants[0];
   const inCart = useCart((s) => (variant ? (s.lines.find((l) => l.variantId === variant.id)?.quantity ?? 0) : 0));
 
+  // A product that doesn't exist (or was removed) shouldn't be indexed by search engines.
+  useNoIndex(error instanceof ApiError && error.status === 404);
+
   if (isLoading) {
     return (
       <div className="container-page grid gap-10 py-10 lg:grid-cols-2" aria-busy>
@@ -55,7 +59,7 @@ export default function ProductPage() {
   if (error || !product || !variant) {
     const nf = error instanceof ApiError && error.status === 404;
     return (
-      <EmptyState icon={<PackageX className="size-10" strokeWidth={1.5} />} title={nf ? 'This product isn’t available' : 'Couldn’t load this product'} action={<ButtonLink to="/shop">Browse all groceries</ButtonLink>}>
+      <EmptyState as="h1" icon={<PackageX className="size-10" strokeWidth={1.5} />} title={nf ? 'This product isn’t available' : 'Couldn’t load this product'} action={<ButtonLink to="/shop">Browse all groceries</ButtonLink>}>
         {nf ? 'It may have been removed from our catalogue.' : (error as Error)?.message}
       </EmptyState>
     );

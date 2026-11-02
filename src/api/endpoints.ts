@@ -53,6 +53,9 @@ export const orderApi = {
     api.post<{ order: Order; reference: string }>(`/orders/${encodeURIComponent(orderNumber)}/demo-pay`, { key, method }),
   rate: (orderNumber: string, stars: number, comment?: string, key?: string, items?: Array<{ itemId: string; stars: number }>) =>
     api.post<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}/rate`, { key, stars, comment, items }).then((r) => r.order),
+  /** Quality stars for items only (an order rated before item ratings existed). */
+  rateItems: (orderNumber: string, items: Array<{ itemId: string; stars: number }>, key?: string) =>
+    api.post<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}/rate-items`, { key, items }).then((r) => r.order),
   cancel: (orderNumber: string, key?: string) =>
     api.post<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}/cancel`, { key }).then((r) => r.order),
   updateAddress: (orderNumber: string, data: OrderAddressInput, key?: string) =>

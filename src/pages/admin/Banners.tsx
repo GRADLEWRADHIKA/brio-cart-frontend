@@ -36,7 +36,7 @@ function BannerForm({ b, onDone }: { b?: AdminBanner; onDone: () => void }) {
     sortOrder: b?.sortOrder ?? 0,
   });
   const [search, setSearch] = useState(b?.productName ?? '');
-  const products = useQuery({ queryKey: ['admin', 'products', { q: search }], queryFn: () => adminApi.products({ q: search }), enabled: search.trim().length >= 2 });
+  const products = useQuery({ queryKey: ['admin', 'products', { q: search, scope: 'all' }], queryFn: () => adminApi.products({ q: search, scope: 'all' }), enabled: search.trim().length >= 2 });
   const { data: categories } = useQuery({ queryKey: ['admin', 'categories'], queryFn: adminApi.categories });
   const picked = products.data?.find((p) => p.id === v.productId);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -77,6 +77,7 @@ function BannerForm({ b, onDone }: { b?: AdminBanner; onDone: () => void }) {
               <li key={p.id}>
                 <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-mint-50" onClick={() => { setV({ ...v, productId: p.id }); setSearch(p.name); }}>
                   <ProductImage src={p.imageUrl} alt="" className="size-8 rounded-lg bg-ivory-100" /> {p.name}
+                  <span className="ml-auto shrink-0 text-xs text-charcoal-500">{p.shop ? p.shop.name : 'Brio Cart'}</span>
                 </button>
               </li>
             ))}

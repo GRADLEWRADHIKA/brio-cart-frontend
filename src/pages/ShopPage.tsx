@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { SearchX, SlidersHorizontal } from 'lucide-react';
+import { PackageOpen, SearchX, SlidersHorizontal } from 'lucide-react';
 import { COLLECTIONS } from '@shared/core';
 import { catalogApi, type ProductFilters } from '@/api/endpoints';
 import { ProductGrid } from '@/components/products/ProductCard';
-import { Button } from '@/components/ui/Button';
+import { Button, ButtonLink } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/misc';
 import { useCategories } from '@/hooks/useStoreInfo';
 import { cn } from '@/utils';
@@ -178,6 +178,21 @@ export default function ShopPage() {
         {query.isError ? (
           <EmptyState icon={<SearchX className="size-10" />} title="Couldn’t load products" action={<Button onClick={() => query.refetch()}>Try again</Button>}>
             {(query.error as Error).message}
+          </EmptyState>
+        ) : !query.isLoading && items.length === 0 && category && !filters.q && !filters.inStock ? (
+          // A category the store is still stocking: say so, rather than "no products found".
+          <EmptyState
+            icon={<PackageOpen className="size-10" strokeWidth={1.5} />}
+            title={`${category.name}: coming soon`}
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                <ButtonLink to="/shop">Browse all groceries</ButtonLink>
+                <ButtonLink to="/shop?collection=essentials" variant="secondary">Daily Essentials</ButtonLink>
+              </div>
+            }
+            className="rounded-[2rem] bg-ivory-100"
+          >
+            We’re adding products to {category.name} right now. Check back soon, or shop our fresh groceries in the meantime.
           </EmptyState>
         ) : !query.isLoading && items.length === 0 ? (
           <EmptyState

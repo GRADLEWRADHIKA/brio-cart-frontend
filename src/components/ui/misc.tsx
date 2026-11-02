@@ -108,14 +108,14 @@ export function QuantityStepper({
   );
 }
 
-export function EmptyState({ icon, title, children, action, className }: { icon: ReactNode; title: string; children?: ReactNode; action?: ReactNode; className?: string }) {
+export function EmptyState({ icon, title, children, action, className, as: Heading = 'h2' }: { icon: ReactNode; title: string; children?: ReactNode; action?: ReactNode; className?: string; /** h1 when it is the whole page. */ as?: 'h1' | 'h2' }) {
   return (
     <div className={cn('flex flex-col items-center px-6 py-14 text-center', className)}>
       <div className="relative mb-6 grid size-24 place-items-center rounded-full bg-mint-100 text-forest-700">
         <div className="absolute inset-0 -z-0 scale-125 rounded-full bg-mint-50" />
         <div className="relative">{icon}</div>
       </div>
-      <h2 className="font-display text-2xl font-semibold text-forest-900">{title}</h2>
+      <Heading className="font-display text-2xl font-semibold text-forest-900">{title}</Heading>
       {children && <div className="mt-2 max-w-md text-charcoal-500">{children}</div>}
       {action && <div className="mt-6">{action}</div>}
     </div>

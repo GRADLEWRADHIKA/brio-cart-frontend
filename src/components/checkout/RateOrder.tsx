@@ -8,6 +8,39 @@ import { cn } from '@/utils';
 
 const LABELS = ['', 'Poor', 'Could be better', 'Good', 'Great', 'Loved it!'];
 
+/** Optional quality stars per item; they become each product's rating. */
+function ItemQuality({ items, value, onChange, className }: { items: Order['items']; value: Record<string, number>; onChange: (v: Record<string, number>) => void; className?: string }) {
+  return (
+    <div className={className} data-testid="rate-items">
+      <p className="text-sm font-extrabold text-charcoal-700">Rate the quality of each item <span className="font-semibold text-charcoal-400">(optional)</span></p>
+      <ul className="mt-2 divide-y divide-line rounded-2xl border border-line bg-white">
+        {items.map((it) => (
+          <li key={it.id} className="flex flex-wrap items-center gap-3 p-3">
+            <span className="min-w-0 flex-1 text-sm font-bold">
+              {it.productName} <span className="font-semibold text-charcoal-500">· {it.variantLabel}</span>
+            </span>
+            <span className="flex" role="radiogroup" aria-label={`Quality of ${it.productName}`}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  role="radio"
+                  aria-checked={value[it.id] === n}
+                  aria-label={`${it.productName}: ${n} star${n > 1 ? 's' : ''}`}
+                  onClick={() => onChange({ ...value, [it.id]: n })}
+                  className="rounded-full p-0.5 transition-transform hover:scale-110"
+                >
+                  <Star className={cn('size-6', n <= (value[it.id] ?? 0) ? 'fill-turmeric-400 text-turmeric-400' : 'text-ivory-300')} />
+                </button>
+              ))}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /** Real customer feedback after delivery (stored on the order; nothing is pre-filled). */
 export function RateOrder({ order, accessKey, queryKey }: { order: Order; accessKey?: string; queryKey: unknown[] }) {
   const qc = useQueryClient();
@@ -21,22 +54,44 @@ export function RateOrder({ order, accessKey, queryKey }: { order: Order; access
       orderApi.rate(order.orderNumber, stars, comment.trim() || undefined, accessKey, Object.entries(itemStars).map(([itemId, s]) => ({ itemId, stars: s }))),
     onSuccess: (o) => qc.setQueryData(queryKey, o),
   });
+  const rateItems = useMutation({
+    mutationFn: () => orderApi.rateItems(order.orderNumber, Object.entries(itemStars).map(([itemId, s]) => ({ itemId, stars: s })), accessKey),
+    onSuccess: (o) => {
+      setItemStars({});
+      qc.setQueryData(queryKey, o);
+    },
+  });
 
   if (order.status !== 'DELIVERED') return null;
+  // Rated already (perhaps before item ratings existed): items without quality stars can still get them.
+  const unrated = order.items.filter((it) => it.productId && !it.rating);
   if (order.rating) {
     return (
-      <section className="flex items-center gap-4 rounded-[1.75rem] bg-mint-50 p-5">
-        <span className="grid size-12 place-items-center rounded-full bg-white text-tomato-500">
-          <Heart className="size-6 fill-current" />
-        </span>
-        <div>
-          <p className="font-extrabold text-forest-900">Thanks for your feedback!</p>
-          <p className="flex items-center gap-0.5 text-turmeric-400" aria-label={`${order.rating.stars} out of 5 stars`}>
-            {Array.from({ length: 5 }, (_, i) => (
-              <Star key={i} className={cn('size-4', i < order.rating!.stars ? 'fill-current' : 'text-ivory-300')} />
-            ))}
-          </p>
+      <section className="rounded-[1.75rem] bg-mint-50 p-5">
+        <div className="flex items-center gap-4">
+          <span className="grid size-12 place-items-center rounded-full bg-white text-tomato-500">
+            <Heart className="size-6 fill-current" />
+          </span>
+          <div>
+            <p className="font-extrabold text-forest-900">Thanks for your feedback!</p>
+            <p className="flex items-center gap-0.5 text-turmeric-400" aria-label={`${order.rating.stars} out of 5 stars`}>
+              {Array.from({ length: 5 }, (_, i) => (
+                <Star key={i} className={cn('size-4', i < order.rating!.stars ? 'fill-current' : 'text-ivory-300')} />
+              ))}
+            </p>
+          </div>
         </div>
+        {unrated.length > 0 && (
+          <>
+            <ItemQuality items={unrated} value={itemStars} onChange={setItemStars} className="mt-4" />
+            {Object.keys(itemStars).length > 0 && (
+              <Button className="mt-3" size="sm" loading={rateItems.isPending} onClick={() => rateItems.mutate()}>
+                Save item ratings
+              </Button>
+            )}
+            {rateItems.error && <p className="mt-2 text-sm font-semibold text-tomato-500">{(rateItems.error as Error).message}</p>}
+          </>
+        )}
       </section>
     );
   }
@@ -65,33 +120,7 @@ export function RateOrder({ order, accessKey, queryKey }: { order: Order; access
       </div>
       {stars > 0 && (
         <>
-          <div className="mt-5" data-testid="rate-items">
-            <p className="text-sm font-extrabold text-charcoal-700">Rate the quality of each item <span className="font-semibold text-charcoal-400">(optional)</span></p>
-            <ul className="mt-2 divide-y divide-line rounded-2xl border border-line">
-              {order.items.filter((it) => it.productId).map((it) => (
-                <li key={it.id} className="flex flex-wrap items-center gap-3 p-3">
-                  <span className="min-w-0 flex-1 text-sm font-bold">
-                    {it.productName} <span className="font-semibold text-charcoal-500">· {it.variantLabel}</span>
-                  </span>
-                  <span className="flex" role="radiogroup" aria-label={`Quality of ${it.productName}`}>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        role="radio"
-                        aria-checked={itemStars[it.id] === n}
-                        aria-label={`${it.productName}: ${n} star${n > 1 ? 's' : ''}`}
-                        onClick={() => setItemStars((m) => ({ ...m, [it.id]: n }))}
-                        className="rounded-full p-0.5 transition-transform hover:scale-110"
-                      >
-                        <Star className={cn('size-6', n <= (itemStars[it.id] ?? 0) ? 'fill-turmeric-400 text-turmeric-400' : 'text-ivory-300')} />
-                      </button>
-                    ))}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <ItemQuality items={order.items.filter((it) => it.productId)} value={itemStars} onChange={setItemStars} className="mt-5" />
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
