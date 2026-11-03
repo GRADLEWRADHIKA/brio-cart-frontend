@@ -49,7 +49,14 @@ export default function ShopPage() {
   const title = filters.q
     ? `Results for “${filters.q}”`
     : category?.name ?? (collection ? (collection.key === 'essentials' ? 'Daily Essentials' : collection.label) : 'All groceries');
-  const subtitle = filters.q ? null : category?.description ?? (collection ? 'Hand-picked by the Brio Cart team.' : 'Fresh vegetables, fruits, dairy and daily essentials.');
+  const subtitle = filters.q
+    ? null
+    : category
+      ? // A category without its own description gets a line about itself, not the store-wide one.
+        category.description || `Shop ${category.name} at Brio Cart, delivered to your door.`
+      : collection
+        ? 'Hand-picked by the Brio Cart team.'
+        : 'Fresh vegetables, fruits, dairy and daily essentials.';
 
   useEffect(() => {
     document.title = `${title} — Brio Cart`;
@@ -86,6 +93,9 @@ export default function ShopPage() {
       'shrink-0 rounded-full border px-3.5 py-1.5 text-[0.8rem] font-bold transition',
       active ? 'border-forest-700 bg-mint-100 text-forest-800' : 'border-dashed border-line bg-white/70 text-charcoal-600 hover:border-forest-700/40',
     );
+
+  /** A category the store is still stocking (no products yet, nothing filtered). */
+  const comingSoon = !query.isLoading && !query.isError && items.length === 0 && !!category && !filters.q && !filters.inStock;
 
   const popularityNote = filters.sort === 'popular' && first && !first.hasPopularityData;
 
@@ -171,7 +181,7 @@ export default function ShopPage() {
 
       <div className="container-page pt-6">
         {filters.category && !filters.q && <BannerCarousel category={filters.category} className="mb-6" />}
-        <p className="mb-4 text-sm font-semibold text-charcoal-500" aria-live="polite">
+        <p className={cn('mb-4 text-sm font-semibold text-charcoal-500', comingSoon && 'sr-only')} aria-live="polite">
           {query.isLoading ? 'Loading products…' : `${first?.total ?? 0} product${first?.total === 1 ? '' : 's'}`}
           {popularityNote && ' · Popularity ranking will appear once orders come in; showing our recommended order for now.'}
         </p>
@@ -179,7 +189,7 @@ export default function ShopPage() {
           <EmptyState icon={<SearchX className="size-10" />} title="Couldn’t load products" action={<Button onClick={() => query.refetch()}>Try again</Button>}>
             {(query.error as Error).message}
           </EmptyState>
-        ) : !query.isLoading && items.length === 0 && category && !filters.q && !filters.inStock ? (
+        ) : comingSoon ? (
           // A category the store is still stocking: say so, rather than "no products found".
           <EmptyState
             icon={<PackageOpen className="size-10" strokeWidth={1.5} />}
