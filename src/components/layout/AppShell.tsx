@@ -11,6 +11,7 @@ import { CartDrawer } from '@/components/cart/CartDrawer';
 import { initNative, watchConnectivity } from '@/native/native';
 import { Spinner } from '@/components/ui/misc';
 import { DeliveryCodePopup } from '@/components/checkout/DeliveryCodePopup';
+import { PreferenceQuestions } from '@/components/prefs/PreferenceQuestions';
 
 function ScrollToTop() {
   const { pathname, search } = useLocation();
@@ -82,6 +83,7 @@ export function AppShell() {
       <CartDrawer />
       <Toaster />
       <RiderArrivedWatcher />
+      <PreferenceQuestions />
     </div>
   );
 }

@@ -1,27 +1,36 @@
 import { useEffect } from 'react';
-import { Hero } from '@/components/home/Hero';
+import { SECTION_SLUGS, type Section } from '@shared/core';
 import { CampaignBanner } from '@/components/home/CampaignBanner';
-import { BannerCarousel } from '@/components/home/BannerCarousel';
-import { HomeTop } from '@/components/home/HomeTop';
-import { HowItWorks, ProduceTicker, ProductRail, ServiceAreas, WhatsAppCta, WhyBrio } from '@/components/home/Sections';
+import { ProductRail } from '@/components/home/Sections';
+import { DeliveryAreas, HowItWorksSteps, PromiseTiles, SupportStrip } from '@/components/home/Redesign';
+import { FrontBanner, HomeVideo, RecommendedRail, SectionBlocks, useSectionOrder } from '@/components/home/FrontPage';
 import { useStoreInfo } from '@/hooks/useStoreInfo';
 
+const SECTION_RAILS: Record<Section, { eyebrow: string; title: string }> = {
+  FRESH: { eyebrow: 'Picked this morning', title: 'Fresh Fruits & Vegetables' },
+  GROCERY: { eyebrow: 'Delivered across India', title: 'Grocery' },
+  HANDMADE: { eyebrow: 'From local makers', title: 'Handmade' },
+};
+
+/** Front page: banner → Fresh / Grocery / Handmade → video → product rows (in the shopper's order of interest). */
 export default function HomePage() {
   const { data } = useStoreInfo();
+  const order = useSectionOrder();
   useEffect(() => {
-    document.title = 'Brio Cart — Fresh Groceries Delivered in Lucknow';
+    document.title = 'Brio Cart — Fresh in Lucknow, Groceries & Handmade across India';
   }, []);
 
   return (
     <>
-      <HomeTop />
-      <BannerCarousel className="container-page mb-10 sm:mb-14" />
-      <Hero />
-      <ProduceTicker />
+      <FrontBanner />
+      <SectionBlocks />
+      <HomeVideo />
+      <RecommendedRail />
       {data?.campaign && <CampaignBanner campaign={data.campaign} />}
       <ProductRail eyebrow="Customer favourites" title="Bestsellers" filters={{ collection: 'bestsellers' }} href="/shop?collection=bestsellers" />
-      <ProductRail eyebrow="Just in" title="Fresh Picks" filters={{ collection: 'fresh-picks' }} href="/shop?collection=fresh-picks" tone="mint" />
-      <ProductRail eyebrow="Kitchen staples" title="Everyday Essentials" filters={{ collection: 'essentials' }} href="/shop?collection=essentials" />
+      {order.map((s) => (
+        <ProductRail key={s} eyebrow={SECTION_RAILS[s].eyebrow} title={SECTION_RAILS[s].title} filters={{ category: SECTION_SLUGS[s] }} href={`/shop?category=${SECTION_SLUGS[s]}`} />
+      ))}
       <ProductRail
         eyebrow="Trending in your area"
         title="Popular Products"
@@ -29,10 +38,10 @@ export default function HomePage() {
         fallback={{ collection: 'popular' }}
         href="/shop?sort=popular"
       />
-      <WhyBrio />
-      <HowItWorks />
-      <ServiceAreas />
-      <WhatsAppCta />
+      <PromiseTiles />
+      <HowItWorksSteps />
+      <DeliveryAreas />
+      <SupportStrip />
     </>
   );
 }

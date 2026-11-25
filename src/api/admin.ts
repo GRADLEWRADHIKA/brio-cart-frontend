@@ -1,9 +1,13 @@
-import type { ExportKind, OrderStatus, RiderStatus, Role, StockReason } from '@shared/core';
+import type { AGE_GROUPS, ExportKind, HEALTH_TAGS, OrderStatus, RiderStatus, Role, ShipScope, StockReason, TASTES } from '@shared/core';
 import type { MyShop, ShopEarnings } from './shop';
 import type { ShopPayoutMethod } from '@shared/core';
 import { api, request } from './client';
 import type { Analytics, CashSummary, Order, Product, ReturnRequestRow, RiderCash, TicketView } from '@/types';
 import { API_BASE } from '@/config/env';
+
+type AgeGroup = (typeof AGE_GROUPS)[number];
+type Taste = (typeof TASTES)[number];
+type HealthTag = (typeof HEALTH_TAGS)[number];
 
 export interface AdminVariant {
   id?: string;
@@ -22,6 +26,14 @@ export interface AdminProduct extends Product {
   sortOrder: number;
   soldCount: number;
   rawImageUrl: string | null;
+  /** Extra photos after the main one, as saved ('/uploads/…' paths or https links). */
+  rawImages?: string[];
+  /** Brio Cart delivery areas it is sold in; empty = all areas. */
+  areaIds?: string[];
+  /** Courier delivery outside the delivery areas. */
+  shipScope?: ShipScope;
+  /** State codes, used only when shipScope is STATES. */
+  shipStates?: string[];
   /** Shop products hidden by Brio Cart staff: the shop can edit them but not put them back on sale. */
   staffHidden?: boolean;
   staffHiddenReason?: string | null;
@@ -123,6 +135,54 @@ export interface AdminSettings {
   gstRatePercent: number;
   invoicePrefix: string;
   returnWindowHours: number;
+  /** Delivery times shown to shoppers: Brio Cart's areas, the rest of the city by courier, the rest of India. */
+  etaLocal: string;
+  etaCity: string;
+  etaIndia: string;
+  /** Home page front banner and video. Images and links: '/uploads/…' or https://; null = default / hidden. */
+  heroTitle: string | null;
+  heroSubtitle: string | null;
+  heroImageUrl: string | null;
+  homeVideoUrl: string | null;
+  homeVideoPoster: string | null;
+  homeVideoTitle: string | null;
+  homeVideoText: string | null;
+  /** About page. */
+  aboutStory: string | null;
+  aboutStoryImage: string | null;
+  aboutChemicalFree: string | null;
+  aboutChemicalImage: string | null;
+}
+
+/** Settings plus what is set up on the server (read-only). */
+export interface AdminSettingsResponse {
+  settings: AdminSettings;
+  /** Razorpay keys are on the server. */
+  onlinePaymentConfigured: boolean;
+  /** Razorpay test keys (rzp_test_…): no real money moves. */
+  onlinePaymentTestMode: boolean;
+  /** Shiprocket login is on the server. */
+  shiprocketConfigured: boolean;
+}
+
+/** A courier order on the shipping page, with its Shiprocket booking when it has one. */
+export type ShippingOrder = Order & { shiprocket: { shipmentId: string; orderId: string | null } | null };
+
+/** A Shiprocket courier option; fee in paise. */
+export interface CourierRate {
+  courierId: number;
+  courierName: string;
+  fee: number;
+  etd: string | null;
+  days: number | null;
+  recommended: boolean;
+}
+
+export interface CourierTracking {
+  status: string | null;
+  etd: string | null;
+  url: string | null;
+  steps: Array<{ at: string; status: string; location: string | null }>;
 }
 
 export interface AdminSlot {
@@ -235,6 +295,18 @@ export interface ProductPayload {
   isActive: boolean;
   sortOrder: number;
   variants: Array<Omit<AdminVariant, 'price' | 'mrp'> & { price: number; mrp: number | null }>;
+  /** Extra photos after the main one (max 7). The fields below are optional: omitted = unchanged. */
+  images?: string[];
+  origin?: string | null;
+  storageTips?: string | null;
+  benefits?: string | null;
+  /** Empty = all delivery areas. */
+  areaIds?: string[];
+  shipScope?: ShipScope;
+  shipStates?: string[];
+  ageGroups?: AgeGroup[];
+  tastes?: Taste[];
+  healthTags?: HealthTag[];
 }
 
 /** A shop as store staff see it, with what Brio Cart owes it. */
@@ -283,7 +355,14 @@ export const adminApi = {
   areas: () => api.get<{ items: AdminArea[] }>('/admin/areas').then((r) => r.items),
   saveArea: (a: { name: string; pincode: string | null; isActive: boolean; sortOrder: number; lat?: number | null; lng?: number | null }, id?: string) => (id ? api.put(`/admin/areas/${id}`, a) : api.post('/admin/areas', a)),
 
-  settings: () => api.get<{ settings: AdminSettings }>('/admin/settings').then((r) => r.settings),
+  /** Settings, with whether Razorpay and Shiprocket are set up on the server. */
+  settings: () =>
+    api.get<Partial<AdminSettingsResponse>>('/admin/settings').then((r): AdminSettingsResponse => ({
+      settings: r.settings!,
+      onlinePaymentConfigured: !!r.onlinePaymentConfigured,
+      onlinePaymentTestMode: !!r.onlinePaymentTestMode,
+      shiprocketConfigured: !!r.shiprocketConfigured,
+    })),
   saveSettings: (s: AdminSettings) => api.put<{ settings: AdminSettings }>('/admin/settings', s).then((r) => r.settings),
 
   campaigns: () => api.get<{ items: AdminCampaign[]; now: string }>('/admin/campaigns'),
@@ -311,7 +390,14 @@ export const adminApi = {
   decideReturn: (id: string, body: { approve: boolean; note?: string; refundMethod?: 'STORE_CREDIT' | 'CASH'; refundAmount?: number }) =>
     api.post<{ request: ReturnRequestRow }>(`/admin/returns/${id}/decision`, body).then((r) => r.request),
   analytics: (range: { from?: string; to?: string }) => api.get<Analytics>('/admin/analytics', range),
-  shippingOrders: (status?: string) => api.get<{ items: Order[] }>('/admin/shipping', { status }).then((r) => r.items),
+  shippingOrders: (status?: string) =>
+    api.get<{ items: ShippingOrder[]; shiprocket?: boolean }>('/admin/shipping', { status }).then((r) => ({ items: r.items, shiprocket: !!r.shiprocket })),
+  /** Shiprocket couriers and rates (fee in paise) for the order's PIN code. */
+  shippingRates: (id: string, weightKg = 1) => api.get<{ items: CourierRate[] }>(`/admin/orders/${id}/shipping/rates`, { weightKg }).then((r) => r.items),
+  /** Books with Shiprocket: shipment, AWB, pickup, and marks the order shipped. Needs the shipping cost set first. */
+  shippingShiprocket: (id: string, d: { weightKg: number; lengthCm: number; breadthCm: number; heightCm: number; courierId?: number }) =>
+    api.post<{ order: Order }>(`/admin/orders/${id}/shipping/shiprocket`, d).then((r) => r.order),
+  shippingTracking: (id: string) => api.get<{ tracking: CourierTracking | null }>(`/admin/orders/${id}/shipping/tracking`).then((r) => r.tracking),
   shippingQuote: (id: string, d: { fee: number; eta: string; courierName?: string; note?: string }) => api.post<{ order: Order }>(`/admin/orders/${id}/shipping/quote`, d).then((r) => r.order),
   shippingShip: (id: string, d: { courierName: string; trackingNumber: string }) => api.post<{ order: Order }>(`/admin/orders/${id}/shipping/ship`, d).then((r) => r.order),
   shippingDelivered: (id: string) => api.post<{ order: Order }>(`/admin/orders/${id}/shipping/delivered`).then((r) => r.order),

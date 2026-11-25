@@ -13,6 +13,9 @@ interface UiState {
   cartOpen: boolean;
   menuOpen: boolean;
   searchOpen: boolean;
+  /** "Your preferences" questions (first visit, or from the account menu). */
+  prefsOpen: boolean;
+  setPrefsOpen: (open: boolean) => void;
   toasts: Toast[];
   setCartOpen: (open: boolean) => void;
   setMenuOpen: (open: boolean) => void;
@@ -29,6 +32,8 @@ export const useUi = create<UiState>()((set, get) => ({
   cartOpen: false,
   menuOpen: false,
   searchOpen: false,
+  prefsOpen: false,
+  setPrefsOpen: (prefsOpen) => set({ prefsOpen, cartOpen: false, menuOpen: false, searchOpen: false }),
   toasts: [],
   setCartOpen: (cartOpen) => set({ cartOpen, menuOpen: false, searchOpen: false }),
   setMenuOpen: (menuOpen) => set({ menuOpen, cartOpen: false, searchOpen: false }),

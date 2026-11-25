@@ -41,6 +41,14 @@ export const addressSchema = z.object({
   label: optionalText(40),
   ...addressFields,
   isDefault: z.boolean().optional(),
+  /** Courier address outside Brio Cart's delivery areas (areaId is then ignored). */
+  shipTo: z
+    .object({
+      state: stateCode,
+      city: text(2, 60, 'City'),
+      pincode: z.string().trim().regex(/^[1-9]\d{5}$/, 'Enter a valid 6-digit PIN code'),
+    })
+    .nullish(),
 });
 export type AddressInput = z.input<typeof addressSchema>;
 

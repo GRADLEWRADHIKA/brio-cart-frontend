@@ -2,8 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFieldArray, useForm } from 'react-hook-form';
-import { ArrowLeft, ImageUp, Plus, Trash2 } from 'lucide-react';
-import { COLLECTIONS } from '@shared/core';
+import { ArrowDown, ArrowLeft, ArrowUp, ImageUp, Plus, Trash2 } from 'lucide-react';
+import {
+  AGE_GROUP_LABELS,
+  AGE_GROUPS,
+  COLLECTIONS,
+  HEALTH_TAG_LABELS,
+  HEALTH_TAGS,
+  INDIAN_STATES,
+  SECTION_LABELS,
+  SHIP_SCOPE_LABELS,
+  SHIP_SCOPES,
+  TASTE_LABELS,
+  TASTES,
+  type ShipScope,
+} from '@shared/core';
 import { type AdminProduct, type ProductPayload } from '@/api/admin';
 import { ApiError } from '@/api/client';
 import { Card, PageHeader, Toggle } from '@/components/admin/kit';
@@ -12,6 +25,17 @@ import { Button } from '@/components/ui/Button';
 import { useCatalogScope } from '@/components/admin/CatalogScope';
 import { categoryOptions } from '@/utils/categories';
 import { ProductImage } from '@/components/ui/misc';
+import { ChipGroup, IMAGE_ACCEPT } from '@/components/admin/Pickers';
+import { useStoreInfo } from '@/hooks/useStoreInfo';
+
+type AgeGroup = (typeof AGE_GROUPS)[number];
+type Taste = (typeof TASTES)[number];
+type HealthTag = (typeof HEALTH_TAGS)[number];
+
+/** Extra photos after the main one. */
+const MAX_EXTRA_IMAGES = 7;
+
+const pick = <T extends string>(all: readonly T[], v: string[] | undefined): T[] => (v ?? []).filter((x): x is T => (all as readonly string[]).includes(x));
 
 interface FormValues {
   name: string;
@@ -26,12 +50,24 @@ interface FormValues {
   isActive: boolean;
   sortOrder: number;
   variants: Array<{ id?: string; label: string; price: string; mrp: string; isAvailable: boolean; trackInventory: boolean; stockQty: number; maxPerOrder: number }>;
+  images: string[];
+  origin: string;
+  storageTips: string;
+  benefits: string;
+  areaIds: string[];
+  shipScope: ShipScope;
+  shipStates: string[];
+  ageGroups: AgeGroup[];
+  tastes: Taste[];
+  healthTags: HealthTag[];
 }
+
+const emptyExtras = { images: [], origin: '', storageTips: '', benefits: '', areaIds: [], shipScope: 'AUTO' as ShipScope, shipStates: [], ageGroups: [], tastes: [], healthTags: [] };
 
 const emptyVariant = { label: '', price: '', mrp: '', isAvailable: true, trackInventory: false, stockQty: 0, maxPerOrder: 10 };
 
 function toForm(p?: AdminProduct): FormValues {
-  if (!p) return { name: '', nameHi: '', slug: '', description: '', highlight: '', imageUrl: '', categoryId: '', collections: [], keywords: '', isActive: true, sortOrder: 0, variants: [{ ...emptyVariant }] };
+  if (!p) return { name: '', nameHi: '', slug: '', description: '', highlight: '', imageUrl: '', categoryId: '', collections: [], keywords: '', isActive: true, sortOrder: 0, variants: [{ ...emptyVariant }], ...emptyExtras };
   return {
     name: p.name,
     nameHi: p.nameHi ?? '',
@@ -45,6 +81,16 @@ function toForm(p?: AdminProduct): FormValues {
     isActive: p.isActive,
     sortOrder: p.sortOrder,
     variants: p.adminVariants.map((v) => ({ ...v, price: String(v.price / 100), mrp: v.mrp ? String(v.mrp / 100) : '' })),
+    images: p.rawImages ?? [],
+    origin: p.origin ?? '',
+    storageTips: p.storageTips ?? '',
+    benefits: p.benefits ?? '',
+    areaIds: p.areaIds ?? [],
+    shipScope: SHIP_SCOPES.includes(p.shipScope as ShipScope) ? (p.shipScope as ShipScope) : 'AUTO',
+    shipStates: p.shipStates ?? [],
+    ageGroups: pick(AGE_GROUPS, p.tags?.ageGroups),
+    tastes: pick(TASTES, p.tags?.tastes),
+    healthTags: pick(HEALTH_TAGS, p.tags?.health),
   };
 }
 
@@ -55,7 +101,9 @@ export default function ProductEditor() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const extraRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const { data: store } = useStoreInfo();
   const { data: categories } = useQuery({ queryKey: [scope.key, 'categories'], queryFn: scope.api.categories });
   const { data: product, isLoading } = useQuery({ queryKey: [scope.key, 'product', id], queryFn: () => scope.api.product(id!), enabled: !isNew });
 
@@ -90,6 +138,17 @@ export default function ProductEditor() {
           stockQty: Number(x.stockQty) || 0,
           maxPerOrder: Number(x.maxPerOrder) || 10,
         })),
+        // The editor owns these: always sent, so clearing one saves it cleared.
+        images: v.images.map((x) => x.trim()).filter(Boolean).slice(0, MAX_EXTRA_IMAGES),
+        origin: v.origin.trim() || null,
+        storageTips: v.storageTips.trim() || null,
+        benefits: v.benefits.trim() || null,
+        areaIds: v.areaIds,
+        shipScope: v.shipScope,
+        shipStates: v.shipScope === 'STATES' ? v.shipStates : [],
+        ageGroups: v.ageGroups,
+        tastes: v.tastes,
+        healthTags: v.healthTags,
       };
       return isNew ? scope.api.createProduct(payload) : scope.api.updateProduct(id!, payload);
     },
@@ -119,6 +178,18 @@ export default function ProductEditor() {
     },
     onError: (e) => setUploadError((e as Error).message),
   });
+  /** Extra photos: uploaded in the order picked, appended after the current ones. */
+  const uploadExtra = useMutation({
+    mutationFn: async (files: File[]) => {
+      const urls: string[] = [];
+      for (const f of files) urls.push((await scope.api.upload(f)).url);
+      return urls;
+    },
+    onSuccess: (urls) => {
+      setValue('images', [...form.getValues('images'), ...urls].slice(0, MAX_EXTRA_IMAGES), { shouldDirty: true });
+    },
+  });
+  const setImages = (next: string[]) => setValue('images', next, { shouldDirty: true });
 
   const confirmDelete = () => {
     if (!scope.moderation) return window.confirm('Delete this product? It disappears from the store but stays in past orders.') && remove.mutate(undefined);
@@ -130,7 +201,13 @@ Reason (shown to the shop):`);
 
   if (!isNew && isLoading) return <div className="skeleton h-96 rounded-3xl" />;
   const imageUrl = watch('imageUrl');
+  const images = watch('images');
+  const areaIds = watch('areaIds');
+  const shipScope = watch('shipScope');
+  const shipStates = watch('shipStates');
+  const areas = store?.areas ?? [];
   const e = formState.errors;
+  const fieldError = (k: string) => (e as Record<string, { message?: string } | undefined>)[k]?.message;
 
   return (
     <form onSubmit={handleSubmit((v) => save.mutate(v))} noValidate>
@@ -176,7 +253,10 @@ Reason (shown to the shop):`);
                 {categoryOptions(categories).map((o) => <option key={o.category.id} value={o.category.id}>{o.label}</option>)}
               </SelectField>
               <TextField label="Highlight" optional placeholder="e.g. Vitamin C Rich" maxLength={60} {...register('highlight')} />
-              <TextAreaField label="Description" optional rows={4} hint="Line breaks are kept as you type them." {...register('description')} className="sm:col-span-2" />
+              <TextAreaField label="Description" optional rows={8} maxLength={3000} hint="Line breaks are kept as you type them. Up to 3000 characters." {...register('description')} error={e.description?.message} className="sm:col-span-2" />
+              <TextAreaField label="Origin / where it's from" optional rows={3} maxLength={600} placeholder="e.g. Grown on partner farms near Malihabad" {...register('origin')} error={e.origin?.message} className="sm:col-span-2" />
+              <TextAreaField label="Freshness & storage" optional rows={3} maxLength={600} placeholder="e.g. Keep refrigerated; best within 3 days" {...register('storageTips')} error={e.storageTips?.message} />
+              <TextAreaField label="Benefits" optional rows={3} maxLength={600} placeholder="e.g. Rich in vitamin C and fibre" {...register('benefits')} error={e.benefits?.message} />
               <TextField label="Search keywords" optional placeholder="Hindi/Hinglish names, e.g. aloo alu" {...register('keywords')} className="sm:col-span-2" />
               {!isNew && <TextField label="URL slug" {...register('slug')} error={e.slug?.message} />}
               <TextField label="Sort order" type="number" min={0} {...register('sortOrder')} hint="Lower numbers appear first." />
@@ -222,6 +302,74 @@ Reason (shown to the shop):`);
               })}
             </div>
           </Card>
+
+          <Card title="Where it’s sold">
+            <p className="mb-2 text-sm font-extrabold text-charcoal-700">Brio Cart delivery areas</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Checkbox label="All areas" description="Also any area added later." checked={areaIds.length === 0} onChange={() => setValue('areaIds', [], { shouldDirty: true })} />
+              {areas.map((a) => (
+                <Checkbox
+                  key={a.id}
+                  label={a.name}
+                  description={a.pincode ?? undefined}
+                  checked={areaIds.includes(a.id)}
+                  onChange={(ev) => setValue('areaIds', ev.target.checked ? [...areaIds, a.id] : areaIds.filter((x) => x !== a.id), { shouldDirty: true })}
+                />
+              ))}
+            </div>
+            {areaIds.some((id) => !areas.some((a) => a.id === id)) && (
+              <p className="mt-2 text-xs text-charcoal-500">Also kept: {areaIds.filter((id) => !areas.some((a) => a.id === id)).length} area(s) that are switched off.</p>
+            )}
+
+            <SelectField
+              label="Courier delivery outside the delivery areas"
+              className="mt-5"
+              {...register('shipScope')}
+              hint={product?.section ? `This product is in ${SECTION_LABELS[product.section]}.` : 'Fresh items stay local by default; Grocery and Handmade ship across India.'}
+            >
+              {SHIP_SCOPES.map((k) => <option key={k} value={k}>{SHIP_SCOPE_LABELS[k]}</option>)}
+            </SelectField>
+            {shipScope === 'STATES' && (
+              <div className="mt-3">
+                <div className="mb-2 flex items-baseline justify-between gap-2">
+                  <p className="text-sm font-extrabold text-charcoal-700">Ship to these states ({shipStates.length})</p>
+                  {shipStates.length > 0 && <button type="button" className="text-xs font-bold text-forest-700" onClick={() => setValue('shipStates', [], { shouldDirty: true })}>Clear</button>}
+                </div>
+                <div className="grid max-h-64 gap-2 overflow-y-auto rounded-2xl border border-line p-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {INDIAN_STATES.map(([code, name]) => (
+                    <Checkbox
+                      key={code}
+                      label={name}
+                      checked={shipStates.includes(code)}
+                      onChange={(ev) => setValue('shipStates', ev.target.checked ? [...shipStates, code] : shipStates.filter((x) => x !== code), { shouldDirty: true })}
+                    />
+                  ))}
+                </div>
+                {shipStates.length === 0 && <p className="mt-2 text-[0.8rem] font-semibold text-tomato-500">Choose at least one state, or it is sold in the delivery areas only.</p>}
+                {fieldError('shipStates') && <p className="mt-2 text-[0.8rem] font-semibold text-tomato-500">{fieldError('shipStates')}</p>}
+              </div>
+            )}
+          </Card>
+
+          <Card title="Personalisation tags">
+            <p className="mb-4 text-sm text-charcoal-500">
+              These drive “Recommended for you” for shoppers who answered the first-visit questions (who they shop for, tastes and health needs). Leave a group empty when it doesn’t apply.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <p className="mb-2 text-sm font-extrabold text-charcoal-700">Good for</p>
+                <ChipGroup label="Good for" options={AGE_GROUPS} labels={AGE_GROUP_LABELS} value={watch('ageGroups')} onChange={(v) => setValue('ageGroups', v, { shouldDirty: true })} />
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-extrabold text-charcoal-700">Taste</p>
+                <ChipGroup label="Taste" options={TASTES} labels={TASTE_LABELS} value={watch('tastes')} onChange={(v) => setValue('tastes', v, { shouldDirty: true })} />
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-extrabold text-charcoal-700">Health</p>
+                <ChipGroup label="Health" options={HEALTH_TAGS} labels={HEALTH_TAG_LABELS} value={watch('healthTags')} onChange={(v) => setValue('healthTags', v, { shouldDirty: true })} />
+              </div>
+            </div>
+          </Card>
         </div>
 
         <div className="space-y-6">
@@ -233,6 +381,49 @@ Reason (shown to the shop):`);
             </Button>
             {uploadError && <p className="mt-2 text-sm font-semibold text-tomato-500">{uploadError}</p>}
             <TextField label="…or image URL" optional placeholder="https://…" {...register('imageUrl')} className="mt-3" hint="Any shape works: uploads are fitted to a square without cropping. Max 5 MB." />
+          </Card>
+          <Card title={`More photos (${images.length}/${MAX_EXTRA_IMAGES})`}>
+            <p className="mb-3 text-sm text-charcoal-500">Use square photos of at least 1200 × 1200 px; 2–4 photos per product. Shown after the main image, in this order.</p>
+            {images.length > 0 && (
+              <ul className="mb-3 space-y-2">
+                {images.map((src, i) => (
+                  <li key={i} className="flex items-center gap-2 rounded-2xl border border-line p-2">
+                    <ProductImage src={src || null} alt={`Photo ${i + 2}`} className="size-14 shrink-0 rounded-xl bg-ivory-100" sizes="56px" />
+                    <input
+                      value={src}
+                      placeholder="https://…"
+                      onChange={(ev) => setImages(images.map((x, j) => (j === i ? ev.target.value : x)))}
+                      aria-label={`Photo ${i + 2} link`}
+                      className="h-9 min-w-0 flex-1 rounded-xl border border-line px-2 text-xs"
+                    />
+                    <button type="button" disabled={i === 0} onClick={() => setImages(images.map((x, j) => (j === i - 1 ? images[i] : j === i ? images[i - 1] : x)))} className="grid size-8 place-items-center rounded-xl hover:bg-ivory-100 disabled:opacity-30" aria-label="Move up"><ArrowUp className="size-4" /></button>
+                    <button type="button" disabled={i === images.length - 1} onClick={() => setImages(images.map((x, j) => (j === i + 1 ? images[i] : j === i ? images[i + 1] : x)))} className="grid size-8 place-items-center rounded-xl hover:bg-ivory-100 disabled:opacity-30" aria-label="Move down"><ArrowDown className="size-4" /></button>
+                    <button type="button" onClick={() => setImages(images.filter((_, j) => j !== i))} className="grid size-8 place-items-center rounded-xl text-tomato-500 hover:bg-tomato-100" aria-label="Remove photo"><Trash2 className="size-4" /></button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(fieldError('images') || uploadExtra.error) && <p className="mb-2 text-sm font-semibold text-tomato-500">{fieldError('images') ?? (uploadExtra.error as Error).message}</p>}
+            <input
+              ref={extraRef}
+              type="file"
+              multiple
+              accept={IMAGE_ACCEPT}
+              className="hidden"
+              onChange={(ev) => {
+                const files = Array.from(ev.target.files ?? []).slice(0, MAX_EXTRA_IMAGES - images.length);
+                ev.target.value = '';
+                if (files.length) uploadExtra.mutate(files);
+              }}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="secondary" icon={<ImageUp className="size-4" />} loading={uploadExtra.isPending} disabled={images.length >= MAX_EXTRA_IMAGES} onClick={() => extraRef.current?.click()}>
+                Upload photos
+              </Button>
+              <Button size="sm" variant="ghost" icon={<Plus className="size-4" />} disabled={images.length >= MAX_EXTRA_IMAGES} onClick={() => setImages([...images, ''])}>
+                Add by link
+              </Button>
+            </div>
           </Card>
           <Card title="Visibility">
             <Checkbox

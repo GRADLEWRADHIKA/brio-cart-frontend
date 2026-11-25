@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { PackageOpen, SearchX, SlidersHorizontal } from 'lucide-react';
+import { MapPinOff, PackageOpen, SearchX } from 'lucide-react';
 import { COLLECTIONS } from '@shared/core';
 import { catalogApi, type ProductFilters } from '@/api/endpoints';
 import { ProductGrid } from '@/components/products/ProductCard';
 import { Button, ButtonLink } from '@/components/ui/Button';
-import { EmptyState } from '@/components/ui/misc';
+import { EmptyState, ProductImage } from '@/components/ui/misc';
+import { TrustStrip } from '@/components/home/Redesign';
 import { useCategories } from '@/hooks/useStoreInfo';
+import { usePreferenceParams, useShopperLocation } from '@/hooks/useShopper';
+import { usePrefs } from '@/store/prefs';
+import { LocationPicker } from '@/components/layout/LocationPicker';
 import { cn } from '@/utils';
 import { mainCategories, pathOf, subCategories } from '@/utils/categories';
 import { BannerCarousel } from '@/components/home/BannerCarousel';
@@ -25,12 +29,18 @@ const PAGE_SIZE = 20;
 export default function ShopPage() {
   const [params, setParams] = useSearchParams();
   const { data: categories } = useCategories();
+  const shopper = useShopperLocation();
+  const prefParams = usePreferenceParams();
+  const courier = usePrefs((s) => s.courier);
   const filters: ProductFilters = {
     category: params.get('category') ?? undefined,
     collection: params.get('collection') ?? undefined,
     q: params.get('q') ?? undefined,
     sort: (params.get('sort') as ProductFilters['sort']) ?? undefined,
     inStock: params.get('inStock') === 'true',
+    // Products that can't reach the shopper come last (greyed out); their answers break ties.
+    ...shopper.params,
+    ...prefParams,
   };
 
   const query = useInfiniteQuery({
@@ -99,38 +109,67 @@ export default function ShopPage() {
 
   const popularityNote = filters.sort === 'popular' && first && !first.hasPopularityData;
 
+  const main = mainCategories(categories);
+  const heroCat = path[0] ?? category;
+  const heroImage = category?.coverUrl ?? category?.imageUrl ?? heroCat?.coverUrl ?? heroCat?.imageUrl ?? main.find((c) => /fresh/.test(c.slug))?.coverUrl ?? null;
+  const crumbs = [
+    { label: 'Home', to: '/' },
+    { label: 'All Categories', to: '/shop' },
+    ...path.map((c) => ({ label: c.name, to: `/shop?category=${c.slug}` })),
+    ...(collection && !category ? [{ label: collection.key === 'essentials' ? 'Daily Essentials' : collection.label, to: `/shop?collection=${collection.key}` }] : []),
+  ];
+  const showTiles = !filters.category && !filters.collection && !filters.q;
+  const total = first?.total ?? 0;
+
   return (
     <div className="pb-10">
-      <section className="border-b border-line bg-ivory-100">
-        <div className="container-page py-8 sm:py-12">
-          <nav aria-label="Breadcrumb" className="text-sm text-charcoal-500">
-            <Link to="/" className="hover:text-forest-700">Home</Link> <span aria-hidden>/</span>{' '}
-            {path.length ? (
-              <>
-                <Link to="/shop" className="hover:text-forest-700">Shop</Link>
-                {path.map((c, i) => (
-                  <span key={c.id}>
-                    {' '}<span aria-hidden>/</span>{' '}
-                    {i === path.length - 1 ? <span className="text-charcoal-700">{c.name}</span> : <Link to={`/shop?category=${c.slug}`} className="hover:text-forest-700">{c.name}</Link>}
-                  </span>
-                ))}
-              </>
-            ) : (
-              <span className="text-charcoal-700">Shop</span>
-            )}
-          </nav>
-          <h1 className="mt-3 font-display text-4xl font-semibold text-forest-900 sm:text-5xl">{title}</h1>
-          {subtitle && <p className="mt-2 max-w-xl text-charcoal-500">{subtitle}</p>}
+      <section className="container-page pt-5 sm:pt-6">
+        <div className="relative flex min-h-[11rem] overflow-hidden rounded-3xl bg-gradient-to-r from-[#e6f3e3] via-[#eef7ec] to-[#f6faf3] shadow-soft sm:min-h-[15rem]">
+          <div aria-hidden className="absolute -left-16 -top-10 size-64 rounded-full bg-[#d6ecd3]/70" />
+          <div className="relative z-10 flex max-w-[60%] flex-col justify-center p-6 sm:p-10 lg:pl-16">
+            <nav aria-label="Breadcrumb" className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-charcoal-700 sm:text-xs">
+              {crumbs.map((c, i) => (
+                <span key={c.to + c.label}>
+                  {i > 0 && <span aria-hidden> &gt; </span>}
+                  {i === crumbs.length - 1 && !filters.q ? <span aria-current="page">{c.label}</span> : <Link to={c.to} className="hover:text-forest-700">{c.label}</Link>}
+                </span>
+              ))}
+            </nav>
+            <h1 className="mt-3 font-display text-3xl font-bold leading-tight text-forest-900 sm:text-5xl">{showTiles ? 'All Categories' : title}</h1>
+            <p className="mt-2 line-clamp-2 text-sm text-charcoal-700 sm:text-base">{showTiles ? 'Explore complete range of groceries and daily essentials.' : subtitle ?? `${total} matching products`}</p>
+          </div>
+          {heroImage && (
+            <div aria-hidden className="absolute inset-y-0 right-0 w-[48%] [mask-image:linear-gradient(to_right,transparent,black_35%)]">
+              <ProductImage src={heroImage} alt="" eager className="size-full" imgClassName="object-cover" />
+            </div>
+          )}
         </div>
       </section>
 
-      <div className="sticky top-[calc(4.5rem+env(safe-area-inset-top))] z-30 border-b border-line bg-ivory-50/90 backdrop-blur-xl lg:top-[7.5rem]">
-        <div className="container-page flex flex-col gap-3 py-3 lg:flex-row lg:flex-wrap lg:items-center">
-          <div className="no-scrollbar -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 lg:mx-0 lg:min-w-0 lg:flex-1 lg:flex-wrap lg:overflow-visible lg:px-0" ref={chipRow} role="group" aria-label="Filter by category">
+      {showTiles ? (
+        <section className="container-page pt-8" aria-label="Categories">
+          <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+            {[
+              // Each section, then its sub-categories (Fresh, Vegetables, Fruits, ... Grocery, Dairy & More, ...).
+              ...main.flatMap((c) => [c, ...subCategories(categories, c.id)]).map((c) => ({ key: c.id, to: `/shop?category=${c.slug}`, name: c.name, image: c.coverUrl ?? c.imageUrl })),
+              { key: 'essentials', to: '/shop?collection=essentials', name: 'Daily Essentials', image: '/uploads/products/onion.webp' },
+            ].map((c, i) => (
+              <li key={c.key}>
+                <Link to={c.to} className={cn('group flex h-full flex-col items-center gap-2 rounded-2xl p-3 text-center transition hover:-translate-y-0.5 hover:shadow-lift', TILE_BG[i % TILE_BG.length])}>
+                  <ProductImage src={c.image} alt="" className="aspect-[4/3] w-full rounded-xl" imgClassName="object-contain! produce-blend transition-transform duration-500 group-hover:scale-105" />
+                  <span className="text-[0.8rem] font-semibold leading-tight text-charcoal-900 sm:text-sm">{c.name}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        <div className="container-page pt-6">
+          <div className="no-scrollbar -mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 md:hidden" ref={chipRow} role="group" aria-label="Filter by category">
             <button type="button" className={chip(!filters.category && !filters.collection)} onClick={() => update({ category: undefined, collection: undefined, page: undefined })} aria-pressed={!filters.category && !filters.collection}>
               All
             </button>
-            {mainCategories(categories).map((c) => (
+            {main.map((c) => (
               <button key={c.id} type="button" className={chip(path[0]?.id === c.id)} onClick={() => update({ category: c.slug, collection: undefined })} aria-pressed={path[0]?.id === c.id}>
                 {c.name}
               </button>
@@ -138,15 +177,14 @@ export default function ShopPage() {
             <button type="button" className={chip(filters.collection === 'essentials')} onClick={() => update({ collection: 'essentials', category: undefined })} aria-pressed={filters.collection === 'essentials'}>
               Daily Essentials
             </button>
-            {/* Browsers drop a scroll row's end padding: keep a gap after the last chip on phones. */}
-            <span aria-hidden className="w-2 shrink-0 lg:hidden" />
+            <span aria-hidden className="w-2 shrink-0" />
           </div>
           {path.slice(0, 2).map((parent, level) => {
             const kids = subCategories(categories, parent.id);
             if (!kids.length) return null;
             const current = path[level + 1];
             return (
-              <div key={parent.id} className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:order-last lg:mx-0 lg:basis-full lg:flex-wrap lg:px-0" role="group" aria-label={`${parent.name}: sub-categories`} data-testid="subcategory-row">
+              <div key={parent.id} className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0" role="group" aria-label={`${parent.name}: sub-categories`} data-testid="subcategory-row">
                 <button type="button" className={subChip(!current)} onClick={() => update({ category: parent.slug })} aria-pressed={!current}>
                   All {parent.name}
                 </button>
@@ -155,19 +193,46 @@ export default function ShopPage() {
                     {k.name}
                   </button>
                 ))}
-                <span aria-hidden className="w-2 shrink-0 lg:hidden" />
+                <span aria-hidden className="w-2 shrink-0 md:hidden" />
               </div>
             );
           })}
-          <div className="flex shrink-0 items-center gap-2 lg:ml-auto lg:self-start">
-            <label className="flex h-10 cursor-pointer items-center gap-2 rounded-full border border-line bg-white px-3.5 text-sm font-bold text-charcoal-700">
-              <input type="checkbox" checked={!!filters.inStock} onChange={(e) => update({ inStock: e.target.checked ? 'true' : undefined })} className="size-4 accent-forest-700" />
-              In stock only
+        </div>
+      )}
+
+      <div className="container-page pt-8">
+        {path[0]?.slug === 'fresh' && courier && (
+          <div className="mb-6 flex flex-col items-start gap-3 rounded-3xl border border-turmeric-400/60 bg-turmeric-100 p-5 text-[#6b4500] sm:flex-row sm:items-center sm:justify-between" role="note" data-testid="fresh-coming-soon">
+            <p className="flex items-start gap-3">
+              <MapPinOff className="mt-0.5 size-6 shrink-0" />
+              <span>
+                <b className="block text-base">Fresh is coming soon to {courier.city ?? 'your city'}</b>
+                Fresh fruit and vegetables are delivered next morning only in our Lucknow localities for now. Grocery and Handmade ship to {courier.pincode}.
+              </span>
+            </p>
+            <div className="flex shrink-0 gap-2">
+              <Link to="/shop?category=grocery" className="btn-solid h-10 px-4 text-sm">
+                Shop Grocery
+              </Link>
+              <LocationPicker variant="pill" />
+            </div>
+          </div>
+        )}
+        {filters.category && !filters.q && <BannerCarousel category={filters.category} className="mb-6" />}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className={cn('font-semibold text-charcoal-900', comingSoon && 'sr-only')} aria-live="polite">
+            {query.isLoading ? 'Loading products…' : `Showing ${total} Product${total === 1 ? '' : 's'}`}
+            {popularityNote && <span className="block text-xs font-normal text-charcoal-500">Popularity ranking will appear once orders come in; showing our recommended order for now.</span>}
+          </p>
+          <div className="flex items-center gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-charcoal-900">
+              <input type="checkbox" role="switch" checked={!!filters.inStock} onChange={(e) => update({ inStock: e.target.checked ? 'true' : undefined })} className="peer sr-only" />
+              <span aria-hidden className="relative h-6 w-11 rounded-full bg-ivory-300 transition peer-checked:bg-forest-800 peer-focus-visible:ring-2 peer-focus-visible:ring-leaf-500 after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-5" />
+              In Stock Only
             </label>
-            <label className="relative flex h-10 items-center gap-2 rounded-full border border-line bg-white pl-3.5 pr-2 text-sm font-bold text-charcoal-700">
-              <SlidersHorizontal className="size-4" aria-hidden />
+            <label className="relative flex h-10 items-center gap-1 rounded-xl border border-line bg-white pl-3 pr-2 text-sm font-semibold text-charcoal-900">
               <span className="sr-only">Sort by</span>
-              <select value={filters.sort ?? 'relevance'} onChange={(e) => update({ sort: e.target.value === 'relevance' ? undefined : e.target.value })} className="bg-transparent pr-1 font-bold outline-none">
+              <select value={filters.sort ?? 'relevance'} onChange={(e) => update({ sort: e.target.value === 'relevance' ? undefined : e.target.value })} className="cursor-pointer bg-transparent pr-1 outline-none">
                 {SORTS.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
@@ -177,14 +242,6 @@ export default function ShopPage() {
             </label>
           </div>
         </div>
-      </div>
-
-      <div className="container-page pt-6">
-        {filters.category && !filters.q && <BannerCarousel category={filters.category} className="mb-6" />}
-        <p className={cn('mb-4 text-sm font-semibold text-charcoal-500', comingSoon && 'sr-only')} aria-live="polite">
-          {query.isLoading ? 'Loading products…' : `${first?.total ?? 0} product${first?.total === 1 ? '' : 's'}`}
-          {popularityNote && ' · Popularity ranking will appear once orders come in; showing our recommended order for now.'}
-        </p>
         {query.isError ? (
           <EmptyState icon={<SearchX className="size-10" />} title="Couldn’t load products" action={<Button onClick={() => query.refetch()}>Try again</Button>}>
             {(query.error as Error).message}
@@ -200,7 +257,7 @@ export default function ShopPage() {
                 <ButtonLink to="/shop?collection=essentials" variant="secondary">Daily Essentials</ButtonLink>
               </div>
             }
-            className="rounded-[2rem] bg-ivory-100"
+            className="rounded-3xl bg-ivory-100"
           >
             We’re adding products to {category.name} right now. Check back soon, or shop our fresh groceries in the meantime.
           </EmptyState>
@@ -214,7 +271,7 @@ export default function ShopPage() {
               </Button>
             }
           >
-            {filters.q ? <>We couldn’t find “{filters.q}”. Try another spelling, a Hindi name, or ask us on WhatsApp.</> : 'Nothing matches these filters right now.'}
+            {filters.q ? <>We couldn’t find “{filters.q}”. Try another spelling or a Hindi name, or call us and we’ll help.</> : 'Nothing matches these filters right now.'}
           </EmptyState>
         ) : (
           <>
@@ -231,7 +288,12 @@ export default function ShopPage() {
             )}
           </>
         )}
+        <div className="mt-12">
+          <TrustStrip />
+        </div>
       </div>
     </div>
   );
 }
+
+const TILE_BG = ['bg-[#e9f4ec]', 'bg-[#fdecef]', 'bg-[#e8f1f8]', 'bg-[#fdf3e3]', 'bg-[#fbeee4]', 'bg-[#efeaf6]', 'bg-[#fdf6e0]', 'bg-[#f7ece6]'];

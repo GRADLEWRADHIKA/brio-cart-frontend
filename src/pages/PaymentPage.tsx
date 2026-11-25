@@ -9,6 +9,7 @@ import { BrioMark } from '@/components/ui/Brand';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { EmptyState, Spinner } from '@/components/ui/misc';
 import { cn } from '@/utils';
+import { RazorpayPay } from '@/components/checkout/RazorpayPay';
 
 type Method = 'UPI' | 'CARD' | 'NETBANKING' | 'WALLET';
 
@@ -144,6 +145,11 @@ export default function PaymentPage() {
   }
   if (error || !order) {
     return <EmptyState icon={<Lock className="size-10" />} title="We couldn’t open this payment" action={<ButtonLink to="/track">Find my order</ButtonLink>}>Open it from the device you ordered on, or sign in.</EmptyState>;
+  }
+  // Real online payments: Razorpay Checkout when its keys are on the server.
+  const gateway = store.data?.settings.onlinePayment;
+  if (gateway?.provider === 'RAZORPAY' && order.paymentMethod === 'ONLINE' && order.status !== 'CANCELLED') {
+    return <RazorpayPay order={order} accessKey={key} testMode={gateway.testMode} />;
   }
   if (!store.data?.settings.demoMode && order.paymentStatus === 'UNPAID') {
     return (

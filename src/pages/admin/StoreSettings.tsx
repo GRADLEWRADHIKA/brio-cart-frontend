@@ -1,21 +1,52 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { CreditCard, Plus, Trash2 } from 'lucide-react';
-import { adminApi, type AdminCampaign, type AdminSettings } from '@/api/admin';
+import { CreditCard, Plus, Trash2, Truck } from 'lucide-react';
+import { adminApi, type AdminCampaign, type AdminSettings, type AdminSettingsResponse } from '@/api/admin';
 import { ApiError } from '@/api/client';
 import { Card, PageHeader } from '@/components/admin/kit';
+import { ImageInput } from '@/components/admin/Pickers';
 import { Checkbox, SelectField, TextAreaField, TextField } from '@/components/forms/Field';
 import { Button } from '@/components/ui/Button';
 import { cn, formatDate } from '@/utils';
 
-function SettingsForm({ initial }: { initial: AdminSettings }) {
+/** Text and link settings where an empty box means "not set" (sent as null). */
+const NULLABLE_TEXT = [
+  'heroTitle',
+  'heroSubtitle',
+  'heroImageUrl',
+  'homeVideoUrl',
+  'homeVideoPoster',
+  'homeVideoTitle',
+  'homeVideoText',
+  'aboutStory',
+  'aboutStoryImage',
+  'aboutChemicalFree',
+  'aboutChemicalImage',
+] as const;
+type NullableText = (typeof NULLABLE_TEXT)[number];
+
+const nullIfEmpty = (v: string | null | undefined) => (v && v.trim() ? v.trim() : null);
+
+/** A read-only line saying whether a service is set up on the server. */
+function ServiceStatus({ icon, ok, name, okText, offText }: { icon: ReactNode; ok: boolean; name: string; okText: string; offText: ReactNode }) {
+  return (
+    <div className={cn('flex items-start gap-3 rounded-2xl p-4 text-sm', ok ? 'bg-mint-100 text-forest-800' : 'border border-dashed border-line bg-ivory-50')}>
+      <span className={cn('mt-0.5', ok ? 'text-forest-700' : 'text-charcoal-400')}>{icon}</span>
+      <p>
+        <strong>{name}:</strong> {ok ? okText : offText}
+      </p>
+    </div>
+  );
+}
+
+function SettingsForm({ initial, status }: { initial: AdminSettings; status: Omit<AdminSettingsResponse, 'settings'> }) {
   const qc = useQueryClient();
   const [slots, setSlots] = useState<string[]>(initial.deliverySlots);
   const form = useForm<AdminSettings>({ defaultValues: initial });
   const save = useMutation({
     mutationFn: (v: AdminSettings) =>
-      adminApi.saveSettings({ ...v, deliveryFee: Number(v.deliveryFee), freeDeliveryThreshold: Number(v.freeDeliveryThreshold), minOrderAmount: Number(v.minOrderAmount), riderPayoutPerDelivery: Number(v.riderPayoutPerDelivery), defaultCommissionPercent: Number(v.defaultCommissionPercent), lowStockThreshold: Number(v.lowStockThreshold), orderConfirmTimeoutMinutes: Number(v.orderConfirmTimeoutMinutes), riderAcceptTimeoutMinutes: Number(v.riderAcceptTimeoutMinutes), dispatchOfferSeconds: Number(v.dispatchOfferSeconds), dispatchRadiusKm: Number(v.dispatchRadiusKm), dispatchMaxOffers: Number(v.dispatchMaxOffers), batchMaxOrders: Number(v.batchMaxOrders), batchRadiusKm: Number(v.batchRadiusKm), gstRatePercent: Number(v.gstRatePercent), returnWindowHours: Number(v.returnWindowHours), gstin: v.gstin || null, storeAddress: v.storeAddress || null, deliverySlots: slots.map((s) => s.trim()).filter(Boolean), supportEmail: v.supportEmail || null, deliveryNote: v.deliveryNote || null }),
+      adminApi.saveSettings({ ...v, deliveryFee: Number(v.deliveryFee), freeDeliveryThreshold: Number(v.freeDeliveryThreshold), minOrderAmount: Number(v.minOrderAmount), riderPayoutPerDelivery: Number(v.riderPayoutPerDelivery), defaultCommissionPercent: Number(v.defaultCommissionPercent), lowStockThreshold: Number(v.lowStockThreshold), orderConfirmTimeoutMinutes: Number(v.orderConfirmTimeoutMinutes), riderAcceptTimeoutMinutes: Number(v.riderAcceptTimeoutMinutes), dispatchOfferSeconds: Number(v.dispatchOfferSeconds), dispatchRadiusKm: Number(v.dispatchRadiusKm), dispatchMaxOffers: Number(v.dispatchMaxOffers), batchMaxOrders: Number(v.batchMaxOrders), batchRadiusKm: Number(v.batchRadiusKm), gstRatePercent: Number(v.gstRatePercent), returnWindowHours: Number(v.returnWindowHours), gstin: v.gstin || null, storeAddress: v.storeAddress || null, deliverySlots: slots.map((s) => s.trim()).filter(Boolean), supportEmail: v.supportEmail || null, deliveryNote: v.deliveryNote || null, etaLocal: v.etaLocal.trim(), etaCity: v.etaCity.trim(), etaIndia: v.etaIndia.trim(), ...(Object.fromEntries(NULLABLE_TEXT.map((k) => [k, nullIfEmpty(v[k])])) as Record<NullableText, string | null>) }),
     onSuccess: (s) => {
       form.reset(s);
       setSlots(s.deliverySlots);
@@ -24,6 +55,10 @@ function SettingsForm({ initial }: { initial: AdminSettings }) {
   });
   const fields = save.error instanceof ApiError ? save.error.details?.fields : undefined;
   const { register } = form;
+  /** Image settings, with the admin uploader. */
+  const image = (k: 'heroImageUrl' | 'homeVideoPoster' | 'aboutStoryImage' | 'aboutChemicalImage', label: string, hint?: string) => (
+    <ImageInput label={label} hint={hint} value={form.watch(k) ?? ''} onChange={(v) => form.setValue(k, v, { shouldDirty: true })} upload={adminApi.upload} error={fields?.[k]} />
+  );
   return (
     <form onSubmit={form.handleSubmit((v) => save.mutate(v))} noValidate className="space-y-6">
       <Card title="Store & contact">
@@ -72,6 +107,50 @@ function SettingsForm({ initial }: { initial: AdminSettings }) {
           <Button size="sm" variant="secondary" icon={<Plus className="size-4" />} onClick={() => setSlots([...slots, ''])}>Add slot</Button>
         </div>
       </Card>
+      <Card title="Delivery times shown to shoppers">
+        <p className="mb-4 text-sm text-charcoal-500">Shown on product pages, the cart and checkout, so shoppers know when to expect their order.</p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <TextField label="Brio Cart delivery areas" maxLength={40} {...register('etaLocal')} error={fields?.etaLocal} hint="Our own riders, e.g. “Next morning”" />
+          <TextField label="Rest of Lucknow (courier)" maxLength={40} {...register('etaCity')} error={fields?.etaCity} hint="e.g. “1–3 days”" />
+          <TextField label="Rest of India (courier)" maxLength={40} {...register('etaIndia')} error={fields?.etaIndia} hint="e.g. “Within 7 days”" />
+        </div>
+        <div className="mt-4">
+          <ServiceStatus
+            icon={<Truck className="size-5" />}
+            ok={status.shiprocketConfigured}
+            name="Shiprocket"
+            okText="connected. Courier rates and booking are available on the Courier orders page."
+            offText={<>not set up. Add SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD to the server .env to get rates and book couriers from the dashboard.</>}
+          />
+        </div>
+      </Card>
+      <Card title="Home page">
+        <p className="mb-2 text-sm font-extrabold text-charcoal-700">Front banner</p>
+        <div className="grid gap-4">
+          <TextField label="Banner title" optional maxLength={80} {...register('heroTitle')} error={fields?.heroTitle} hint="Leave empty for the standard title." />
+          <TextAreaField label="Banner subtitle" optional rows={2} maxLength={200} {...register('heroSubtitle')} error={fields?.heroSubtitle} />
+          {image('heroImageUrl', 'Banner photo', 'A wide photo, at least 1600 px across. Leave empty for the standard one.')}
+        </div>
+        <p className="mb-2 mt-6 text-sm font-extrabold text-charcoal-700">Video</p>
+        <div className="grid gap-4">
+          <TextField label="Video link" optional placeholder="https://youtu.be/… or https://…/video.mp4" {...register('homeVideoUrl')} error={fields?.homeVideoUrl} hint="YouTube link or a direct .mp4 link; leave empty to hide the video" />
+          <TextField label="Video title" optional maxLength={80} {...register('homeVideoTitle')} error={fields?.homeVideoTitle} />
+          <TextAreaField label="Video text" optional rows={3} maxLength={300} {...register('homeVideoText')} error={fields?.homeVideoText} />
+          {image('homeVideoPoster', 'Video cover photo', 'Shown before the video plays.')}
+        </div>
+      </Card>
+      <Card title="About page">
+        <p className="mb-2 text-sm font-extrabold text-charcoal-700">Our Brand Story</p>
+        <div className="grid gap-4">
+          <TextAreaField label="Brand story" optional rows={8} maxLength={4000} {...register('aboutStory')} error={fields?.aboutStory} hint="Line breaks are kept. Leave empty for the standard text." />
+          {image('aboutStoryImage', 'Brand story photo')}
+        </div>
+        <p className="mb-2 mt-6 text-sm font-extrabold text-charcoal-700">Chemical Free</p>
+        <div className="grid gap-4">
+          <TextAreaField label="Chemical-free text" optional rows={8} maxLength={4000} {...register('aboutChemicalFree')} error={fields?.aboutChemicalFree} hint="Line breaks are kept. Leave empty for the standard text." />
+          {image('aboutChemicalImage', 'Chemical-free photo')}
+        </div>
+      </Card>
       <Card title="Presentation (demo) mode">
         <Checkbox
           label="Enable demo mode"
@@ -87,10 +166,13 @@ function SettingsForm({ initial }: { initial: AdminSettings }) {
         <div className="space-y-3">
           <Checkbox label="Cash on Delivery" {...register('codEnabled')} />
           <Checkbox label="UPI on Delivery" {...register('upiOnDeliveryEnabled')} />
-          <div className="flex items-start gap-3 rounded-2xl border border-dashed border-line bg-ivory-50 p-4 text-sm">
-            <CreditCard className="mt-0.5 size-5 text-charcoal-400" />
-            <p><strong>Real online payments: not configured.</strong> A payment gateway (e.g. Razorpay) must be set up on the server before online payment can be offered. See the README → “Online payments”.</p>
-          </div>
+          <ServiceStatus
+            icon={<CreditCard className="size-5" />}
+            ok={status.onlinePaymentConfigured}
+            name="Razorpay"
+            okText={`connected${status.onlinePaymentTestMode ? ' (test mode: no real money moves)' : ' (live)'}. Shoppers can pay online at checkout.`}
+            offText={<>not set up. Add the Razorpay keys to the server .env before online payment can be offered. See the README → “Online payments”.</>}
+          />
         </div>
       </Card>
       {save.error && <p className="rounded-2xl bg-tomato-100 p-3 text-sm font-semibold text-tomato-500" role="alert">{(save.error as Error).message}</p>}
@@ -211,7 +293,7 @@ export default function StoreSettingsPage() {
     <>
       <PageHeader title="Settings & campaigns" subtitle="Changes apply to the store and app immediately." />
       <div className="grid gap-6 xl:grid-cols-2">
-        <div>{isLoading || !data ? <div className="skeleton h-96 rounded-3xl" /> : <SettingsForm initial={data} />}</div>
+        <div>{isLoading || !data ? <div className="skeleton h-96 rounded-3xl" /> : <SettingsForm initial={data.settings} status={data} />}</div>
         <div>
           <Campaigns />
         </div>

@@ -8,11 +8,25 @@ import { cn } from '@/utils';
 
 const LABELS = ['', 'Poor', 'Could be better', 'Good', 'Great', 'Loved it!'];
 
-/** Optional quality stars per item; they become each product's rating. */
-function ItemQuality({ items, value, onChange, className }: { items: Order['items']; value: Record<string, number>; onChange: (v: Record<string, number>) => void; className?: string }) {
+/** Optional quality stars per item, with a short review; they appear on each product's page. */
+function ItemQuality({
+  items,
+  value,
+  onChange,
+  reviews,
+  onReview,
+  className,
+}: {
+  items: Order['items'];
+  value: Record<string, number>;
+  onChange: (v: Record<string, number>) => void;
+  reviews: Record<string, string>;
+  onReview: (v: Record<string, string>) => void;
+  className?: string;
+}) {
   return (
     <div className={className} data-testid="rate-items">
-      <p className="text-sm font-extrabold text-charcoal-700">Rate the quality of each item <span className="font-semibold text-charcoal-400">(optional)</span></p>
+      <p className="text-sm font-extrabold text-charcoal-700">Rate and review each item <span className="font-semibold text-charcoal-400">(optional)</span></p>
       <ul className="mt-2 divide-y divide-line rounded-2xl border border-line bg-white">
         {items.map((it) => (
           <li key={it.id} className="flex flex-wrap items-center gap-3 p-3">
@@ -34,6 +48,17 @@ function ItemQuality({ items, value, onChange, className }: { items: Order['item
                 </button>
               ))}
             </span>
+            {value[it.id] ? (
+              <textarea
+                value={reviews[it.id] ?? ''}
+                onChange={(e) => onReview({ ...reviews, [it.id]: e.target.value })}
+                maxLength={500}
+                rows={2}
+                placeholder={`Write a short review of ${it.productName} (optional). It’s shown on the product page with your first name.`}
+                className="w-full rounded-xl border border-line p-2.5 text-sm focus:border-leaf-500 focus:outline-none focus:ring-4 focus:ring-leaf-500/15"
+                aria-label={`Review of ${it.productName}`}
+              />
+            ) : null}
           </li>
         ))}
       </ul>
@@ -49,13 +74,14 @@ export function RateOrder({ order, accessKey, queryKey }: { order: Order; access
   const [comment, setComment] = useState('');
   /** Quality per item (optional): becomes the product's rating. */
   const [itemStars, setItemStars] = useState<Record<string, number>>({});
+  const [itemReviews, setItemReviews] = useState<Record<string, string>>({});
+  const itemRatings = () => Object.entries(itemStars).map(([itemId, s]) => ({ itemId, stars: s, review: itemReviews[itemId]?.trim() || undefined }));
   const rate = useMutation({
-    mutationFn: () =>
-      orderApi.rate(order.orderNumber, stars, comment.trim() || undefined, accessKey, Object.entries(itemStars).map(([itemId, s]) => ({ itemId, stars: s }))),
+    mutationFn: () => orderApi.rate(order.orderNumber, stars, comment.trim() || undefined, accessKey, itemRatings()),
     onSuccess: (o) => qc.setQueryData(queryKey, o),
   });
   const rateItems = useMutation({
-    mutationFn: () => orderApi.rateItems(order.orderNumber, Object.entries(itemStars).map(([itemId, s]) => ({ itemId, stars: s })), accessKey),
+    mutationFn: () => orderApi.rateItems(order.orderNumber, itemRatings(), accessKey),
     onSuccess: (o) => {
       setItemStars({});
       qc.setQueryData(queryKey, o);
@@ -83,7 +109,7 @@ export function RateOrder({ order, accessKey, queryKey }: { order: Order; access
         </div>
         {unrated.length > 0 && (
           <>
-            <ItemQuality items={unrated} value={itemStars} onChange={setItemStars} className="mt-4" />
+            <ItemQuality items={unrated} value={itemStars} onChange={setItemStars} reviews={itemReviews} onReview={setItemReviews} className="mt-4" />
             {Object.keys(itemStars).length > 0 && (
               <Button className="mt-3" size="sm" loading={rateItems.isPending} onClick={() => rateItems.mutate()}>
                 Save item ratings
@@ -120,7 +146,7 @@ export function RateOrder({ order, accessKey, queryKey }: { order: Order; access
       </div>
       {stars > 0 && (
         <>
-          <ItemQuality items={order.items.filter((it) => it.productId)} value={itemStars} onChange={setItemStars} className="mt-5" />
+          <ItemQuality items={order.items.filter((it) => it.productId)} value={itemStars} onChange={setItemStars} reviews={itemReviews} onReview={setItemReviews} className="mt-5" />
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}

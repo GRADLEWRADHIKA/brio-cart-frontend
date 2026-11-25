@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, CheckCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bell, CheckCheck, ChevronLeft, ChevronRight, Package, Tag, Truck, UserRound } from 'lucide-react';
 import { hasPermission, type Role } from '@shared/core';
 import type { AppNotification } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
@@ -169,6 +169,116 @@ export function NotificationList() {
       <ul className="divide-y divide-line">{data?.items.map((n) => <Item key={n.id} n={n} onOpen={openItem} />)}</ul>
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-line px-4 py-3 text-sm">
+          <Button size="sm" variant="ghost" icon={<ChevronLeft className="size-4" />} disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            Newer
+          </Button>
+          <span className="text-charcoal-500">
+            Page {data.page} of {data.totalPages}
+          </span>
+          <Button size="sm" variant="ghost" disabled={page >= data.totalPages} onClick={() => setPage((p) => p + 1)}>
+            Older <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Which tab a customer notification belongs to. */
+function groupOf(n: AppNotification): 'orders' | 'offers' | 'account' {
+  if (/CAMPAIGN|OFFER|PROMO|DEAL/.test(n.type)) return 'offers';
+  if (n.orderNumber || n.orderId || /^ORDER_|DELIVERY|RIDER|ADDRESS|RETURN/.test(n.type)) return 'orders';
+  return 'account';
+}
+
+function iconFor(n: AppNotification) {
+  const g = groupOf(n);
+  if (g === 'offers') return Tag;
+  if (n.type === 'ORDER_DELIVERED') return Truck;
+  if (g === 'orders') return Package;
+  return UserRound;
+}
+
+/** "10 min ago" for today, otherwise the date and time. */
+function when(iso: string) {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins} min ago`;
+  if (mins < 24 * 60) return `${Math.floor(mins / 60)} hour${mins < 120 ? '' : 's'} ago`;
+  return formatDate(iso);
+}
+
+/** Customer notifications page: filter pills and one card per notification. */
+export function NotificationCards() {
+  const [page, setPage] = useState(1);
+  const [tab, setTab] = useState<'all' | 'orders' | 'offers' | 'account'>('all');
+  const { data, isLoading } = useNotificationList(page, 30);
+  const { markAllRead } = useNotificationActions();
+  const openItem = useOpen();
+  const items = data?.items ?? [];
+  const tabs = [
+    { key: 'all' as const, label: 'All', n: items.length },
+    { key: 'orders' as const, label: 'Orders', n: items.filter((x) => groupOf(x) === 'orders').length },
+    { key: 'offers' as const, label: 'Offers', n: items.filter((x) => groupOf(x) === 'offers').length },
+    { key: 'account' as const, label: 'Account', n: items.filter((x) => groupOf(x) === 'account').length },
+  ];
+  const shown = tab === 'all' ? items : items.filter((x) => groupOf(x) === tab);
+  return (
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0" role="group" aria-label="Filter notifications">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              aria-pressed={tab === t.key}
+              onClick={() => setTab(t.key)}
+              className={cn('shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition', tab === t.key ? 'border-forest-800 bg-forest-800 text-white' : 'border-line bg-white text-charcoal-900 hover:border-forest-700/40')}
+            >
+              {t.label} ({t.n})
+            </button>
+          ))}
+        </div>
+        <Button size="sm" variant="ghost" icon={<CheckCheck className="size-4" />} disabled={!data?.unread} loading={markAllRead.isPending} onClick={() => markAllRead.mutate()}>
+          Mark all read
+        </Button>
+      </div>
+      {isLoading && <div className="skeleton mt-5 h-24 rounded-2xl" />}
+      {data && shown.length === 0 && (
+        <EmptyState icon={<Bell className="size-10" strokeWidth={1.5} />} title="No notifications here">
+          Order updates and offers will appear here.
+        </EmptyState>
+      )}
+      <ul className="mt-5 space-y-3">
+        {shown.map((n) => {
+          const Icon = iconFor(n);
+          return (
+            <li key={n.id}>
+              <button
+                type="button"
+                onClick={() => openItem(n)}
+                className={cn('flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition hover:shadow-soft sm:p-5', n.readAt ? 'border-line bg-white' : 'border-mint-200 bg-mint-50')}
+              >
+                <span className={cn('grid size-12 shrink-0 place-items-center rounded-xl', n.readAt ? 'border border-line bg-white text-charcoal-900' : 'bg-mint-100 text-forest-700')}>
+                  <Icon className="size-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-bold text-charcoal-900">{n.title}</span>
+                  <span className="block text-sm text-charcoal-500">{n.body}</span>
+                </span>
+                <span className="shrink-0 text-right text-sm font-medium text-charcoal-700">{when(n.createdAt)}</span>
+                {!n.readAt && (
+                  <span className="size-2.5 shrink-0 rounded-full bg-leaf-500">
+                    <span className="sr-only">Unread</span>
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {data && data.totalPages > 1 && (
+        <div className="mt-5 flex items-center justify-between text-sm">
           <Button size="sm" variant="ghost" icon={<ChevronLeft className="size-4" />} disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
             Newer
           </Button>

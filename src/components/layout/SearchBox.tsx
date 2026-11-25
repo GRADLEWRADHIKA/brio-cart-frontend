@@ -72,10 +72,10 @@ export function SearchBox({ className, autoFocus, onDone, variant = 'header' }: 
         }}
         className={cn(
           'flex items-center gap-2 rounded-full border transition focus-within:border-leaf-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-leaf-500/15',
-          variant === 'header' ? 'h-12 border-line bg-ivory-100 pl-4 pr-1.5' : 'h-14 border-line bg-white pl-5 pr-2 shadow-soft',
+          variant === 'header' ? 'h-11 border-line bg-ivory-100 pl-4 pr-1.5' : 'h-14 border-line bg-white pl-5 pr-2 shadow-soft',
         )}
       >
-        <Search className="size-5 shrink-0 text-charcoal-500" aria-hidden />
+        <Search className="size-[1.1rem] shrink-0 text-charcoal-400" aria-hidden />
         <input
           type="search"
           value={q}
@@ -95,7 +95,7 @@ export function SearchBox({ className, autoFocus, onDone, variant = 'header' }: 
               setActive((a) => Math.max(a - 1, -1));
             } else if (e.key === 'Escape') setOpen(false);
           }}
-          placeholder={`Search “${HINTS[hint]}”, fruits, dairy…`}
+          placeholder={variant === 'header' ? 'Search for fruits, vegetables and more...' : `Search “${HINTS[hint]}”, fruits, dairy…`}
           aria-label="Search groceries"
           role="combobox"
           aria-expanded={open && items.length > 0}
@@ -109,7 +109,7 @@ export function SearchBox({ className, autoFocus, onDone, variant = 'header' }: 
             <X className="size-4" />
           </button>
         )}
-        <button type="submit" className="grid size-9 shrink-0 place-items-center rounded-full bg-forest-800 text-ivory-50 transition hover:bg-forest-700" aria-label="Search">
+        <button type="submit" className={cn('size-9 shrink-0 place-items-center rounded-full bg-forest-800 text-ivory-50 transition hover:bg-forest-700', variant === 'header' ? 'sr-only' : 'grid')} aria-label="Search">
           <ArrowRight className="size-4" />
         </button>
       </form>

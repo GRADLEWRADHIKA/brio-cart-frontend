@@ -31,7 +31,7 @@ export default function RegisterPage() {
   const fieldErrors = (signUp.error as { details?: { fields?: Record<string, string> } } | null)?.details?.fields;
 
   return (
-    <AuthLayout title="Create your account" subtitle="Save addresses, reorder quickly and track every delivery.">
+    <AuthLayout title="Create Your Account" subtitle="Save addresses, reorder quickly and track every delivery.">
       <form onSubmit={form.handleSubmit((v) => signUp.mutate(v))} noValidate className="space-y-4">
         <TextField label="Full name" autoComplete="name" {...form.register('name')} error={errors.name?.message ?? fieldErrors?.name} />
         <TextField label="Mobile number" type="tel" inputMode="numeric" prefix="+91" autoComplete="tel-national" {...form.register('phone')} error={errors.phone?.message ?? fieldErrors?.phone} />

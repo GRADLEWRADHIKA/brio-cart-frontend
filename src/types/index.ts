@@ -1,3 +1,4 @@
+import type { ProductDelivery, Section } from '@shared/core';
 import type { DeliveryStatus, NotificationType, OrderStatus, OrderTotals, PaymentMethod, RiderStatus, Role, SlotAvailability } from '@shared/core';
 
 export interface Variant {
@@ -31,6 +32,43 @@ export interface Product {
   boughtBy?: number;
   /** Product page only: main category first, e.g. Fresh › Vegetables › Exotic. */
   categoryPath?: Array<{ slug: string; name: string }>;
+  /** Fresh / Grocery / Handmade, from the main category. */
+  section?: Section;
+  /** Main photo first, then the gallery. */
+  images?: string[];
+  origin?: string | null;
+  storageTips?: string | null;
+  benefits?: string | null;
+  /** Where it can be delivered: Brio Cart areas, and courier reach outside them. */
+  delivery?: ProductDelivery;
+  tags?: { ageGroups: string[]; tastes: string[]; health: string[] };
+  /** Product page only: written reviews from customers who received it. */
+  reviews?: ProductReview[];
+}
+
+export interface ProductReview {
+  id: string;
+  stars: number;
+  text: string;
+  at: string | null;
+  /** First name and initial. */
+  name: string;
+  packLabel: string;
+}
+
+/** GET /location/:pincode — any Indian PIN code. */
+export interface PincodeInfo {
+  pincode: string;
+  city: string | null;
+  state: string | null;
+  stateName: string | null;
+  /** In Lucknow (outside the delivery areas it goes by courier in 1–3 days). */
+  inCity: boolean;
+  /** Brio Cart delivery areas with this PIN code; empty = courier only. */
+  areas: Array<{ id: string; name: string; pincode: string | null }>;
+  etaLocal: string;
+  courierEta: string;
+  courier: { courierName: string; fee: number; etd: string | null; days: number | null } | null;
 }
 
 /** A confirmed order no rider has taken yet (rider open pool). */
@@ -114,6 +152,13 @@ export interface StoreSettings {
   demoMode: boolean;
   returnWindowHours?: number;
   storeLocation: LatLng;
+  /** Which online checkout to open: Razorpay when its keys are on the server, the demo screen in demo mode. */
+  onlinePayment?: { provider: 'RAZORPAY'; keyId: string; testMode: boolean } | { provider: 'DEMO' } | null;
+  /** Delivery times: Brio Cart's areas, the rest of the city by courier, the rest of India. */
+  eta?: { local: string; city: string; india: string };
+  hero?: { title: string | null; subtitle: string | null; imageUrl: string | null };
+  homeVideo?: { url: string; poster: string | null; title: string | null; text: string | null } | null;
+  about?: { story: string | null; storyImage: string | null; chemicalFree: string | null; chemicalImage: string | null };
 }
 
 export interface LatLng {
@@ -188,7 +233,11 @@ export interface Address {
   lat?: number | null;
   lng?: number | null;
   isDefault: boolean;
-  area: { name: string; isActive: boolean };
+  area: { name: string; isActive: boolean; isCourier?: boolean };
+  /** Courier addresses outside the delivery areas. */
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
 }
 
 export interface Order {
