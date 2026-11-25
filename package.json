@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:live": "playwright test -c playwright.live.config.ts",
     "serve:public": "vite build && vite preview --port 5847 --strictPort",
     "cap:sync": "npm run build:native && cap sync android",
     "android:debug": "node scripts/build-android.mjs debug",

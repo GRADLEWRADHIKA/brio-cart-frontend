@@ -49,6 +49,14 @@ End-to-end tests (Playwright, Google Chrome) start their own isolated API from a
 BRIO_BACKEND_DIR=/path/to/brio-cart-backend npm run test:e2e
 ```
 
+`e2e/delivery-flow.spec.ts` covers the whole order-to-doorstep journey across customer, super admin, shop owner and rider.
+
+Read-only smoke checks against the live site (no sign-ins, no orders; `LIVE_URL` overrides the default):
+
+```bash
+npm run test:live
+```
+
 ## Android app
 
 `android/` is the Capacitor project; `capacitor.config.ts` uses `dist/` as the web directory.
