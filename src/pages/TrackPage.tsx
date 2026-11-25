@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, PackageSearch } from 'lucide-react';
-import { buildWhatsAppUrl, formatINR } from '@shared/core';
+import { formatINR } from '@shared/core';
 import { useGuestOrders } from '@/store/guest-orders';
 import { useAuth } from '@/hooks/useAuth';
 import { useContact } from '@/hooks/useStoreInfo';
 import { TextField } from '@/components/forms/Field';
 import { Button, ButtonLink } from '@/components/ui/Button';
-import { WhatsAppIcon } from '@/components/ui/Brand';
-import { formatDate, openExternal } from '@/utils';
+import { formatDate } from '@/utils';
 
 export default function TrackPage() {
   const orders = useGuestOrders((s) => s.orders);
   const { user } = useAuth();
-  const { whatsapp } = useContact();
+  const { phoneDisplay } = useContact();
   const navigate = useNavigate();
   const [number, setNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -45,10 +44,7 @@ export default function TrackPage() {
       </form>
       <p className="mt-3 text-sm text-charcoal-500">
         For privacy, order details open on the device you ordered from{user ? ' or in your account' : ''}. Otherwise,{' '}
-        <button type="button" className="font-bold text-forest-700 underline" onClick={() => openExternal(buildWhatsAppUrl(whatsapp, `Hello Brio Cart, I'd like an update on order ${number.trim().toUpperCase() || '…'}`))}>
-          ask us on WhatsApp
-        </button>
-        .
+call or WhatsApp us on <span className="select-all font-bold text-forest-700">{phoneDisplay}</span>.
       </p>
 
       {user && (
@@ -78,9 +74,9 @@ export default function TrackPage() {
       )}
 
       {!orders.length && !user && (
-        <button type="button" onClick={() => openExternal(buildWhatsAppUrl(whatsapp))} className="mt-10 flex items-center gap-2 text-sm font-bold text-[#13843f]">
-          <WhatsAppIcon className="size-5" /> Placed your order on WhatsApp? Message us for an update.
-        </button>
+        <p className="mt-10 text-sm text-charcoal-700">
+          Placed your order by phone or WhatsApp? Call or WhatsApp <span className="select-all font-bold text-forest-700">{phoneDisplay}</span> for an update.
+        </p>
       )}
     </div>
   );

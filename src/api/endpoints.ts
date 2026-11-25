@@ -1,7 +1,7 @@
-import type { CheckoutInput, OrderAddressInput, RiderRegisterInput, ShopRegisterInput } from '@shared';
+import type { CheckoutInput, OrderAddressInput, RiderRegisterInput, ShopperPreferences, ShopRegisterInput } from '@shared';
 import { api, request } from './client';
 import { API_BASE } from '@/config/env';
-import type { Address, AppNotification, Banner, AvailableOrder, CartValidation, Category, NotificationPage, Order, Product, ProductPage, PublicShop, ReturnRequestRow, RiderCash, RiderEarnings, SlotDay, TicketView, WalletView, RiderProfile, StoreInfo, User } from '@/types';
+import type { Address, AppNotification, PincodeInfo, Banner, AvailableOrder, CartValidation, Category, NotificationPage, Order, Product, ProductPage, PublicShop, ReturnRequestRow, RiderCash, RiderEarnings, SlotDay, TicketView, WalletView, RiderProfile, StoreInfo, User } from '@/types';
 
 export interface ProductFilters {
   category?: string;
@@ -13,6 +13,15 @@ export interface ProductFilters {
   inStock?: boolean;
   page?: number;
   pageSize?: number;
+  section?: 'FRESH' | 'GROCERY' | 'HANDMADE';
+  /** Shopper's location: a Brio Cart area id, or a state code for courier delivery. */
+  area?: string;
+  ship?: string;
+  /** First-visit answers (comma-separated lists). */
+  age?: string;
+  taste?: string;
+  health?: string;
+  interest?: string;
 }
 
 export const catalogApi = {
@@ -23,12 +32,17 @@ export const catalogApi = {
   products: (f: ProductFilters, signal?: AbortSignal) =>
     api.get<ProductPage>('/products', { ...f, inStock: f.inStock ? 'true' : undefined }, signal),
   product: (slug: string) => api.get<{ product: Product; related: Product[] }>(`/products/${encodeURIComponent(slug)}`),
+  /** "Recommended for you": same location and preference parameters as `products`. */
+  recommended: (f: Pick<ProductFilters, 'area' | 'ship' | 'age' | 'taste' | 'health' | 'interest'>) =>
+    api.get<{ items: Product[] }>('/products/recommended', f).then((r) => r.items),
+  /** Any Indian PIN code → Brio Cart delivery area, or courier destination with delivery time. */
+  pincode: (pin: string) => api.get<PincodeInfo>(`/location/${encodeURIComponent(pin)}`),
   shops: () => api.get<{ items: PublicShop[] }>('/shops').then((r) => r.items),
   shop: (slug: string) => api.get<{ shop: PublicShop }>(`/shops/${encodeURIComponent(slug)}`).then((r) => r.shop),
   deliverySlots: (days = 3) => api.get<{ days: SlotDay[] }>('/delivery-slots', { days }).then((r) => r.days),
-  /** `shipState`: price for a courier delivery to that state (only shops that ship there). */
-  validateCart: (items: Array<{ variantId: string; quantity: number }>, couponCode?: string, shipState?: string) =>
-    api.post<CartValidation>('/cart/validate', { items, couponCode: couponCode || undefined, shipState: shipState || undefined }),
+  /** `shipState`: price for a courier delivery to that state; `areaId`: for one of Brio Cart's areas. */
+  validateCart: (items: Array<{ variantId: string; quantity: number }>, couponCode?: string, shipState?: string, areaId?: string) =>
+    api.post<CartValidation>('/cart/validate', { items, couponCode: couponCode || undefined, shipState: shipState || undefined, areaId: (!shipState && areaId) || undefined }),
 };
 
 export interface ActiveDeliveryCode {
@@ -49,12 +63,26 @@ export const orderApi = {
     request<{ order: Order; orders?: Order[]; replayed: boolean }>('/orders', { method: 'POST', body: input, headers: { 'Idempotency-Key': input.idempotencyKey } }),
   get: (orderNumber: string, key?: string) =>
     api.get<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}`, { key }).then((r) => r.order),
+  /** Razorpay: the Razorpay order for this order's total (reused when Checkout is opened again). */
+  razorpayOrder: (orderNumber: string, key?: string) =>
+    api.post<{ keyId: string; amount: number; currency: string; testMode: boolean; razorpayOrderId: string | null; alreadyPaid: boolean }>(`/orders/${encodeURIComponent(orderNumber)}/razorpay/order`, { key }),
+  /** Razorpay: the server checks the signature and the payment with Razorpay, then marks the order paid. */
+  razorpayVerify: (orderNumber: string, d: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string }, key?: string) =>
+    api.post<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}/razorpay/verify`, { ...d, key }).then((r) => r.order),
+  /** Courier tracking (Shiprocket) for an order sent outside the delivery areas; null when not available. */
+  courierTracking: (orderNumber: string, key?: string) =>
+    api
+      .get<{ tracking: { status: string | null; etd: string | null; url: string | null; steps: Array<{ at: string; status: string; location: string | null }> } | null }>(
+        `/orders/${encodeURIComponent(orderNumber)}/courier-tracking`,
+        { key },
+      )
+      .then((r) => r.tracking),
   demoPay: (orderNumber: string, method: 'UPI' | 'CARD' | 'NETBANKING' | 'WALLET', key?: string) =>
     api.post<{ order: Order; reference: string }>(`/orders/${encodeURIComponent(orderNumber)}/demo-pay`, { key, method }),
-  rate: (orderNumber: string, stars: number, comment?: string, key?: string, items?: Array<{ itemId: string; stars: number }>) =>
+  rate: (orderNumber: string, stars: number, comment?: string, key?: string, items?: Array<{ itemId: string; stars: number; review?: string }>) =>
     api.post<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}/rate`, { key, stars, comment, items }).then((r) => r.order),
   /** Quality stars for items only (an order rated before item ratings existed). */
-  rateItems: (orderNumber: string, items: Array<{ itemId: string; stars: number }>, key?: string) =>
+  rateItems: (orderNumber: string, items: Array<{ itemId: string; stars: number; review?: string }>, key?: string) =>
     api.post<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}/rate-items`, { key, items }).then((r) => r.order),
   cancel: (orderNumber: string, key?: string) =>
     api.post<{ order: Order }>(`/orders/${encodeURIComponent(orderNumber)}/cancel`, { key }).then((r) => r.order),
@@ -102,6 +130,9 @@ export const accountApi = {
   updateAddress: (id: string, data: unknown) => api.put<{ address: Address }>(`/account/addresses/${id}`, data).then((r) => r.address),
   deleteAddress: (id: string) => api.delete<{ ok: true }>(`/account/addresses/${id}`),
   orders: () => api.get<{ items: Order[] }>('/account/orders').then((r) => r.items),
+  /** First-visit answers kept on the account (null = never answered). */
+  preferences: () => api.get<{ preferences: ShopperPreferences | null }>('/account/preferences').then((r) => r.preferences),
+  savePreferences: (p: ShopperPreferences) => api.put<{ preferences: ShopperPreferences }>('/account/preferences', p).then((r) => r.preferences),
 };
 
 export const riderApi = {

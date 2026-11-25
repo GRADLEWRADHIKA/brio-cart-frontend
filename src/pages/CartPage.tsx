@@ -5,11 +5,12 @@ import { useCart } from '@/store/cart';
 import { useCartTotals } from '@/hooks/useCartTotals';
 import { useCartValidation } from '@/hooks/useCartValidation';
 import { CartLineItem, FreeDeliveryMeter, SellerSplit, TotalsTable } from '@/components/cart/CartBits';
-import { WhatsAppOrderButton } from '@/components/cart/WhatsAppOrderButton';
 import { ButtonLink } from '@/components/ui/Button';
+import { useContact } from '@/hooks/useStoreInfo';
 import { EmptyState } from '@/components/ui/misc';
 
 export default function CartPage() {
+  const { phoneDisplay } = useContact();
   const { totals, rules, lines, orderable, groups } = useCartTotals();
   const clear = useCart((s) => s.clear);
   const validation = useCartValidation();
@@ -95,7 +96,9 @@ export default function CartPage() {
               Continue shopping
             </ButtonLink>
           </div>
-          <WhatsAppOrderButton lines={orderable} totals={totals} className="rounded-[1.75rem] bg-[#f3fbf5] p-4" />
+          <p className="rounded-2xl bg-mint-50 p-4 text-sm text-charcoal-700">
+            Questions or support? Call or WhatsApp <span className="select-all font-bold text-forest-800">{phoneDisplay}</span>
+          </p>
         </aside>
       </div>
     </div>

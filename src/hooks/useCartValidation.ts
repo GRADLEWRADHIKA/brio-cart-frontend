@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { catalogApi } from '@/api/endpoints';
 import { useCart } from '@/store/cart';
+import { usePrefs } from '@/store/prefs';
 import type { CartValidation } from '@/types';
 
 /**
@@ -16,11 +17,13 @@ export function useCartValidation() {
     result: null,
     error: null,
   });
-  const signature = lines.map((l) => `${l.variantId}:${l.quantity}`).join('|');
+  // Priced for the shopper's Brio Cart area, so products not sold there are flagged before checkout.
+  const areaId = usePrefs((s) => s.areaId);
+  const signature = lines.map((l) => `${l.variantId}:${l.quantity}`).join('|') + (areaId ? `@${areaId}` : '');
   const seq = useRef(0);
 
   useEffect(() => {
-    if (!signature) {
+    if (!lines.length) {
       setState({ loading: false, priceChanged: false, result: null, error: null });
       return;
     }
@@ -29,7 +32,7 @@ export function useCartValidation() {
     const t = setTimeout(async () => {
       try {
         const items = useCart.getState().lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity }));
-        const result = await catalogApi.validateCart(items);
+        const result = await catalogApi.validateCart(items, undefined, undefined, areaId ?? undefined);
         if (id !== seq.current) return;
         const { priceChanged } = applyValidation(result);
         setState((s) => ({ loading: false, priceChanged: s.priceChanged || priceChanged, result, error: null }));
@@ -38,6 +41,7 @@ export function useCartValidation() {
       }
     }, 250);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `signature` covers lines and areaId
   }, [signature, applyValidation]);
 
   return state;

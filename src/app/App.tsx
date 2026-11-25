@@ -19,6 +19,7 @@ const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/RegisterPage'));
 const AccountPage = lazy(() => import('@/pages/AccountPage'));
 const InfoPage = lazy(() => import('@/pages/InfoPage'));
+const AboutPage = lazy(() => import('@/pages/AboutPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 const AdminApp = lazy(() => import('@/pages/admin/AdminApp'));
 const RiderApp = lazy(() => import('@/pages/rider/RiderApp'));
@@ -59,6 +60,7 @@ const customerRoutes: RouteObject[] = [
   { path: 'account', element: <RequireRole roles={['CUSTOMER']}><AccountPage /></RequireRole> },
   { path: 'account/:tab', element: <RequireRole roles={['CUSTOMER']}><AccountPage /></RequireRole> },
   { path: 'notifications', element: <RequireRole roles={['CUSTOMER']}><NotificationsPage /></RequireRole> },
+  { path: 'about', element: <AboutPage /> },
   { path: 'help', element: <InfoPage page="help" /> },
   { path: 'privacy', element: <InfoPage page="privacy" /> },
   { path: 'terms', element: <InfoPage page="terms" /> },

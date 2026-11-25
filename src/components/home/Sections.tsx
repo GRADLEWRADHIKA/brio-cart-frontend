@@ -1,7 +1,6 @@
 import { useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, ChevronLeft, ChevronRight, HandHeart, IndianRupee, MapPin, PackageCheck, Phone, ShoppingBasket, Sprout, Store } from 'lucide-react';
+import { HandHeart, IndianRupee, MapPin, PackageCheck, Phone, ShoppingBasket, Sprout, Store } from 'lucide-react';
 import { buildWhatsAppUrl } from '@shared/core';
 import { catalogApi, type ProductFilters } from '@/api/endpoints';
 import { ProductCard, ProductCardSkeleton } from '@/components/products/ProductCard';
@@ -9,6 +8,8 @@ import { SectionHeading } from '@/components/ui/misc';
 import { WhatsAppIcon } from '@/components/ui/Brand';
 import { useContact, useStoreInfo } from '@/hooks/useStoreInfo';
 import { cn, openExternal } from '@/utils';
+import { RailTitle } from './Redesign';
+import { usePreferenceParams, useShopperLocation } from '@/hooks/useShopper';
 import stallPhoto from '@/assets/brand/brio-cart-stall.jpg';
 
 /* ---------------- Produce ticker ---------------- */
@@ -55,40 +56,25 @@ export function ProductRail({
   tone?: 'plain' | 'mint';
 }) {
   const scroller = useRef<HTMLDivElement>(null);
-  const q = useQuery({ queryKey: ['rail', filters], queryFn: () => catalogApi.products({ inStock: true, pageSize: 12, ...filters }) });
+  const { params } = useShopperLocation();
+  const prefs = usePreferenceParams();
+  const ctx = { ...params, ...prefs };
+  const q = useQuery({ queryKey: ['rail', filters, ctx], queryFn: () => catalogApi.products({ inStock: true, pageSize: 12, ...ctx, ...filters }) });
   // "Popular" uses real sales when available; otherwise the store's curated list.
   const needFallback = !!fallback && q.data && (!q.data.hasPopularityData || q.data.items.length < 4);
   const fb = useQuery({
-    queryKey: ['rail', fallback],
-    queryFn: () => catalogApi.products({ inStock: true, pageSize: 12, ...fallback }),
+    queryKey: ['rail', fallback, ctx],
+    queryFn: () => catalogApi.products({ inStock: true, pageSize: 12, ...ctx, ...fallback }),
     enabled: !!needFallback,
   });
   const data = needFallback ? fb.data : q.data;
   const loading = q.isLoading || (needFallback && fb.isLoading);
   if (!loading && (!data || data.items.length === 0)) return null;
 
-  const scroll = (dir: number) => scroller.current?.scrollBy({ left: dir * scroller.current.clientWidth * 0.8, behavior: 'smooth' });
-
   return (
-    <section className={cn('pt-16 sm:pt-20', tone === 'mint' && 'mt-16 bg-mint-50 pb-16 sm:mt-20 sm:pb-20')}>
+    <section className={cn('pt-12 sm:pt-14', tone === 'mint' && 'mt-12 bg-mint-50 pb-12 sm:mt-14 sm:pb-14')} data-eyebrow={eyebrow}>
       <div className="container-page">
-        <SectionHeading
-          eyebrow={eyebrow}
-          title={title}
-          action={
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => scroll(-1)} className="hidden size-11 place-items-center rounded-full border border-line bg-white transition hover:border-forest-700 md:grid" aria-label={`Scroll ${title} left`}>
-                <ChevronLeft className="size-5" />
-              </button>
-              <button type="button" onClick={() => scroll(1)} className="hidden size-11 place-items-center rounded-full border border-line bg-white transition hover:border-forest-700 md:grid" aria-label={`Scroll ${title} right`}>
-                <ChevronRight className="size-5" />
-              </button>
-              <Link to={href} className="ml-1 inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-extrabold text-forest-700 hover:bg-mint-100">
-                See all <ArrowRight className="size-4" />
-              </Link>
-            </div>
-          }
-        />
+        <RailTitle title={title} href={href} />
       </div>
       <div ref={scroller} className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-4 sm:gap-4 sm:scroll-px-6 sm:px-6 lg:scroll-px-[max(2rem,calc((100vw-1280px)/2+2rem))] lg:px-[max(2rem,calc((100vw-1280px)/2+2rem))]">
         {loading
@@ -98,7 +84,7 @@ export function ProductRail({
               </div>
             ))
           : data!.items.map((p) => (
-              <div key={p.id} className="w-[46%] shrink-0 snap-start sm:w-[14.5rem]">
+              <div key={p.id} className="w-[46%] shrink-0 snap-start sm:w-[14.5rem] lg:w-[calc((min(100vw,1280px)-4rem-4rem)/5)]">
                 <ProductCard product={p} className="h-full" />
               </div>
             ))}

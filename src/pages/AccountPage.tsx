@@ -41,11 +41,15 @@ export default function AccountPage() {
   if (!user) return <Navigate to={`/login?next=/account${tab !== 'orders' ? `/${tab}` : ''}`} replace />;
 
   return (
-    <div className="container-page py-8 sm:py-12">
+    <div className="container-page py-6 sm:py-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow text-leaf-600">My account</p>
-          <h1 className="mt-2 font-display text-4xl font-semibold text-forest-900 sm:text-5xl">Namaste, {user.name.split(' ')[0]}</h1>
+          <nav aria-label="Breadcrumb" className="text-sm text-charcoal-500">
+            <Link to="/" className="hover:text-forest-700">Home</Link> <span aria-hidden>›</span>{' '}
+            <span className="text-charcoal-900">{tab === 'orders' ? 'My Orders' : 'My Account'}</span>
+          </nav>
+          <h1 className="mt-1 font-display text-3xl font-bold text-forest-900 sm:text-4xl">{tab === 'orders' ? 'My Orders' : 'My Account'}</h1>
+          <p className="mt-1 text-sm text-charcoal-500">Namaste, {user.name.split(' ')[0]}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <ButtonLink to="/notifications" variant="outline" icon={<Bell className="size-4" />}>
@@ -61,19 +65,19 @@ export default function AccountPage() {
           </Button>
         </div>
       </div>
-      <nav className="no-scrollbar mt-8 flex gap-2 overflow-x-auto" aria-label="Account sections">
+      <nav className="no-scrollbar mt-6 flex gap-1 overflow-x-auto border-b border-line" aria-label="Account sections">
         {TABS.map(({ key, label, icon: Icon }) => (
           <NavLink
             key={key}
             to={key === 'orders' ? '/account' : `/account/${key}`}
             end
-            className={() => cn('inline-flex shrink-0 items-center gap-2 rounded-full px-5 py-2.5 font-bold transition', tab === key ? 'bg-forest-800 text-ivory-50' : 'bg-white text-charcoal-700 ring-1 ring-line hover:ring-forest-700/40')}
+            className={() => cn('-mb-px inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition', tab === key ? 'border-forest-800 text-forest-800' : 'border-transparent text-charcoal-500 hover:text-charcoal-900')}
           >
             <Icon className="size-4" /> {label}
           </NavLink>
         ))}
       </nav>
-      <div className="mt-8">
+      <div className="mt-6">
         {tab === 'orders' && <OrdersTab />}
         {tab === 'addresses' && <AddressesTab />}
         {tab === 'profile' && (
@@ -89,58 +93,104 @@ export default function AccountPage() {
   );
 }
 
+const ORDER_FILTERS = [
+  { key: 'all', label: 'All Orders', match: () => true },
+  { key: 'processing', label: 'Processing', match: (s: string) => s === 'PENDING' || s === 'CONFIRMED' || s === 'PREPARING' },
+  { key: 'out', label: 'Out for Delivery', match: (s: string) => s === 'OUT_FOR_DELIVERY' },
+  { key: 'delivered', label: 'Delivered', match: (s: string) => s === 'DELIVERED' },
+  { key: 'cancelled', label: 'Cancelled', match: (s: string) => s === 'CANCELLED' },
+] as const;
+
+function statusLine(status: string, updatedAt: string | undefined) {
+  if (status === 'DELIVERED') return `Delivered${updatedAt ? ` on ${formatDate(updatedAt)}` : ''}.`;
+  if (status === 'CANCELLED') return `This order was cancelled${updatedAt ? ` on ${formatDate(updatedAt)}` : ''}.`;
+  if (status === 'OUT_FOR_DELIVERY') return 'Your order is on the way.';
+  if (status === 'PENDING') return 'Waiting for the store to confirm your order.';
+  return 'Your order is being packed and will be out for delivery soon.';
+}
+
 function OrdersTab() {
   const { data, isLoading } = useQuery({ queryKey: ['account', 'orders'], queryFn: accountApi.orders });
   const reorder = useReorder();
-  if (isLoading) return <div className="skeleton h-40 rounded-[1.75rem]" />;
+  const [filter, setFilter] = useState<(typeof ORDER_FILTERS)[number]['key']>('all');
+  if (isLoading) return <div className="skeleton h-40 rounded-2xl" />;
   if (!data?.length)
     return (
       <EmptyState icon={<Package className="size-10" strokeWidth={1.5} />} title="No orders yet" action={<ButtonLink to="/shop">Start shopping</ButtonLink>}>
         Orders you place while signed in will appear here.
       </EmptyState>
     );
+  const active = ORDER_FILTERS.find((f) => f.key === filter)!;
+  const shown = data.filter((o) => active.match(o.status));
   return (
-    <ul className="grid gap-4 md:grid-cols-2">
-      {data.map((o) => (
-        <li key={o.id}>
-          <Link to={`/orders/${o.orderNumber}`} className="group block rounded-[1.75rem] border border-line bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-lift">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-mono font-bold">{o.orderNumber}</p>
-                <p className="text-sm text-charcoal-500">{formatDate(o.createdAt)}</p>
-              </div>
-              <StatusPill status={o.status} />
-            </div>
-            <div className="mt-4 flex -space-x-3">
-              {o.items.slice(0, 5).map((i) => (
-                <ProductImage key={i.id} src={i.imageUrl} alt="" className="size-12 rounded-full bg-ivory-100 p-1 ring-2 ring-white" />
-              ))}
-              {o.items.length > 5 && <span className="grid size-12 place-items-center rounded-full bg-ivory-200 text-xs font-bold ring-2 ring-white">+{o.items.length - 5}</span>}
-            </div>
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-sm text-charcoal-500">
-                {o.items.reduce((n, i) => n + i.quantity, 0)} items · {o.customer.areaName}
-              </span>
-              <span className="flex items-center gap-1 font-extrabold tabular-nums">
-                {formatINR(o.total)} <ChevronRight className="size-4 text-charcoal-400 transition group-hover:translate-x-0.5" />
-              </span>
-            </div>
-          </Link>
-          {(o.status === 'DELIVERED' || o.status === 'CANCELLED') && (
-            <Button
-              size="sm"
-              variant="secondary"
-              className="mt-2"
-              icon={<RotateCcw className="size-4" />}
-              loading={reorder.isPending && reorder.variables?.items === o.items}
-              onClick={() => reorder.mutate(o)}
+    <div>
+      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label="Filter orders">
+        {ORDER_FILTERS.map((f) => {
+          const n = data.filter((o) => f.match(o.status)).length;
+          return (
+            <button
+              key={f.key}
+              type="button"
+              aria-pressed={filter === f.key}
+              onClick={() => setFilter(f.key)}
+              className={cn('shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition', filter === f.key ? 'border-forest-800 bg-forest-800 text-white' : 'border-line bg-white text-charcoal-900 hover:border-forest-700/40')}
             >
-              Reorder
-            </Button>
-          )}
-        </li>
-      ))}
-    </ul>
+              {f.label} ({n})
+            </button>
+          );
+        })}
+      </div>
+      {shown.length === 0 ? (
+        <p className="mt-6 rounded-2xl border border-dashed border-line p-8 text-center text-charcoal-500">No orders here.</p>
+      ) : (
+        <ul className="mt-5 space-y-4">
+          {shown.map((o) => {
+            const done = o.status === 'DELIVERED' || o.status === 'CANCELLED';
+            const items = o.items.reduce((n, i) => n + i.quantity, 0);
+            return (
+              <li key={o.id} className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-4 shadow-soft md:flex-row md:items-center md:p-5">
+                <div className="flex min-w-0 items-center gap-4 md:w-[22rem] md:shrink-0 md:border-r md:border-line md:pr-5">
+                  <ProductImage src={o.items[0]?.imageUrl} alt="" className="size-20 shrink-0 rounded-xl bg-ivory-100" />
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-charcoal-900">Order #{o.orderNumber}</p>
+                    <p className="text-xs text-charcoal-500">Placed on {formatDate(o.createdAt)}</p>
+                    <p className="mt-1.5 text-sm">
+                      <span className="text-lg font-extrabold tabular-nums">{formatINR(o.total)}</span>
+                      <span className="mx-2 text-line">|</span>
+                      <span className="text-charcoal-500">{items} items</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <StatusPill status={o.status} />
+                  <p className="mt-2 text-sm text-charcoal-700">{statusLine(o.status, (o as { updatedAt?: string }).updatedAt)}</p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  {done ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon={<RotateCcw className="size-4" />}
+                      loading={reorder.isPending && reorder.variables?.items === o.items}
+                      onClick={() => reorder.mutate(o)}
+                    >
+                      Buy Again
+                    </Button>
+                  ) : (
+                    <ButtonLink size="sm" variant="outline" to={`/orders/${o.orderNumber}`} icon={<MapPin className="size-4" />}>
+                      Track Order
+                    </ButtonLink>
+                  )}
+                  <Link to={`/orders/${o.orderNumber}`} className="inline-flex h-9 items-center gap-1 rounded-full border border-line px-4 text-sm font-semibold text-charcoal-900 hover:border-forest-700/40">
+                    View Details <ChevronRight className="size-4" />
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 

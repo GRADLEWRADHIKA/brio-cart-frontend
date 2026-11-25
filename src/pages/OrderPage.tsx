@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Copy, MapPin, PackageSearch, Phone, Wallet } from 'lucide-react';
-import { buildWhatsAppUrl, composeWhatsAppOrderMessage, formatINR } from '@shared/core';
+import { Check, Copy, MapPin, Package, PackageSearch, Phone, Wallet } from 'lucide-react';
+import { formatINR } from '@shared/core';
 import { orderApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
 import { useGuestOrders } from '@/store/guest-orders';
@@ -18,8 +18,8 @@ import { CreditCard, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { EmptyState, ProductImage } from '@/components/ui/misc';
-import { WhatsAppIcon } from '@/components/ui/Brand';
-import { formatDate, openExternal } from '@/utils';
+import { BrioMark } from '@/components/ui/Brand';
+import { formatDate } from '@/utils';
 import { PushPrompt, useArrivedPopup } from '@/components/notifications/RiderArrivedAlert';
 
 function Confetti() {
@@ -49,7 +49,7 @@ export default function OrderPage() {
   const justPlaced = placed?.justPlaced;
   const deviceKey = useGuestOrders((s) => s.keyFor(orderNumber));
   const key = params.get('key') ?? deviceKey;
-  const { whatsapp, phoneDisplay } = useContact();
+  const { phoneDisplay } = useContact();
   const qc = useQueryClient();
   const [copied, setCopied] = useState(false);
 
@@ -104,25 +104,6 @@ export default function OrderPage() {
     );
   }
 
-  const share = () =>
-    openExternal(
-      buildWhatsAppUrl(
-        whatsapp,
-        composeWhatsAppOrderMessage({
-          orderNumber: order.orderNumber,
-          customerName: order.customer.name,
-          area: order.customer.areaName,
-          deliverySlot: order.deliverySlot ?? undefined,
-          paymentMethod: order.paymentMethodLabel,
-          lines: order.items.map((i) => ({ name: i.productName, variantLabel: i.variantLabel, quantity: i.quantity, unitPrice: i.unitPrice })),
-          subtotal: order.subtotal,
-          deliveryFee: order.deliveryFee,
-          discount: order.discount,
-          total: order.total,
-        }),
-      ),
-    );
-
   /** Other orders from the same checkout (one per seller), shown right after placing. */
   const siblings = placed?.siblings?.filter((o) => o.orderNumber !== order.orderNumber) ?? [];
 
@@ -132,49 +113,54 @@ export default function OrderPage() {
       {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && !order.shipping && (
         <PushPrompt className="mb-4" text="Get an alert on your phone when your rider arrives, even if this page is closed." />
       )}
-      <section className="grain relative overflow-hidden rounded-[2rem] bg-forest-900 p-6 text-ivory-50 sm:p-10">
+      <section className="relative overflow-hidden rounded-3xl border border-mint-200 bg-gradient-to-br from-[#f1faf3] to-[#e2f4e7] p-6 sm:p-10">
         {justPlaced && <Confetti />}
-        <div className="relative z-10 flex flex-wrap items-start justify-between gap-6">
-          <div>
+        <div className="relative z-10 grid items-center gap-6 md:grid-cols-[14rem_1fr]">
+          <div className="relative mx-auto hidden size-44 place-items-center md:grid" aria-hidden>
+            <span className="absolute inset-x-4 bottom-2 h-6 rounded-full bg-leaf-500/20 blur-md" />
+            <span className="grid size-36 place-items-center rounded-[2.25rem] bg-white shadow-lift">
+              <BrioMark className="h-20 w-auto" />
+            </span>
+          </div>
+          <div className="text-center md:text-left">
             {justPlaced ? (
               <>
-                <span className="grid size-14 place-items-center rounded-full bg-lime-300 text-forest-900">
+                <span className="mx-auto grid size-14 place-items-center rounded-full bg-leaf-500 text-white shadow-lg md:mx-0">
                   <Check className="size-7" strokeWidth={3} />
                 </span>
-                <h1 className="mt-5 font-display text-4xl font-medium sm:text-5xl">Order placed, thank you!</h1>
-                <p className="mt-2 max-w-lg text-ivory-50/70">
+                <h1 className="mt-4 font-sans text-3xl font-bold tracking-tight text-charcoal-900 sm:text-4xl">Order Confirmed!</h1>
+                <p className="mt-2 max-w-xl text-charcoal-700">
+                  Thank you{order.customer.name ? `, ${order.customer.name.split(' ')[0]}` : ''}!{' '}
                   {order.shop
                     ? `Your order has been sent to ${order.shop.name}. They’ll confirm it shortly and a Brio Cart rider will deliver it`
-                    : 'Your order has been received by Brio Cart. We’ll confirm it shortly and deliver'}{' '}
+                    : 'Your order has been placed successfully. We’ll confirm it shortly and deliver'}{' '}
                   {order.deliverySlot ? `tomorrow, ${order.deliverySlot.replace(/^Morning,\s*/, '')}` : 'soon'}.
                 </p>
               </>
             ) : (
               <>
-                <p className="eyebrow text-lime-300">{order.shop ? `Order from ${order.shop.name}` : 'Order details'}</p>
-                <h1 className="mt-2 font-display text-4xl font-medium sm:text-5xl">Order {order.orderNumber}</h1>
-                <p className="mt-2 text-ivory-50/70">Placed {formatDate(order.createdAt)}</p>
+                <p className="text-sm font-semibold text-leaf-600">{order.shop ? `Order from ${order.shop.name}` : 'Order details'}</p>
+                <h1 className="mt-1 font-sans text-3xl font-bold tracking-tight text-charcoal-900 sm:text-4xl">Order {order.orderNumber}</h1>
+                <p className="mt-1 text-charcoal-500">Placed {formatDate(order.createdAt)}</p>
               </>
             )}
-          </div>
-          <div className="rounded-2xl border border-white/15 bg-white/5 p-4 backdrop-blur">
-            <p className="text-xs font-bold uppercase tracking-wider text-ivory-50/60">Order number</p>
-            <p className="mt-1 flex items-center gap-2 font-mono text-xl font-bold tracking-wider" data-testid="order-number">
-              {order.orderNumber}
-              <button
-                type="button"
-                onClick={() => {
-                  void navigator.clipboard?.writeText(order.orderNumber);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1500);
-                }}
-                className="grid size-8 place-items-center rounded-full hover:bg-white/10"
-                aria-label="Copy order number"
-              >
-                {copied ? <Check className="size-4 text-lime-300" /> : <Copy className="size-4" />}
-              </button>
-            </p>
-            <div className="mt-2">
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+              <p className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2" data-testid="order-number">
+                <span className="text-sm text-charcoal-500">Order ID:</span>
+                <span className="font-mono font-bold tracking-wide">#{order.orderNumber}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(order.orderNumber);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                  }}
+                  className="grid size-7 place-items-center rounded-full hover:bg-ivory-100"
+                  aria-label="Copy order number"
+                >
+                  {copied ? <Check className="size-4 text-leaf-600" /> : <Copy className="size-4" />}
+                </button>
+              </p>
               <StatusPill status={order.status} />
             </div>
           </div>
@@ -200,7 +186,7 @@ export default function OrderPage() {
         </section>
       )}
 
-      <ShippingCard order={order} className="mt-6" />
+      <ShippingCard order={order} className="mt-6" accessKey={key ?? undefined} tracking />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-6">
@@ -217,9 +203,9 @@ export default function OrderPage() {
           <LiveTracking order={order} />
           <RateOrder order={order} accessKey={key ?? undefined} queryKey={['order', orderNumber, key]} />
           <OrderExtras order={order} accessKey={key} />
-          <section className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby="items-h">
-            <h2 id="items-h" className="font-display text-2xl font-semibold text-forest-900">
-              Items ({order.items.length})
+          <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6" aria-labelledby="items-h">
+            <h2 id="items-h" className="flex items-center gap-2 font-sans text-lg font-bold tracking-tight text-charcoal-900">
+              <Package className="size-5 text-leaf-600" /> Order Details ({order.items.length})
             </h2>
             <ul className="mt-4 divide-y divide-line">
               {order.items.map((i) => (
@@ -239,12 +225,12 @@ export default function OrderPage() {
               <div className="flex justify-between"><dt className="text-charcoal-500">Subtotal</dt><dd className="font-bold tabular-nums">{formatINR(order.subtotal)}</dd></div>
               {order.discount > 0 && <div className="flex justify-between text-leaf-600"><dt>Discount</dt><dd className="font-bold">−{formatINR(order.discount)}</dd></div>}
               <div className="flex justify-between"><dt className="text-charcoal-500">Delivery</dt><dd className="font-bold tabular-nums">{order.deliveryFee ? formatINR(order.deliveryFee) : 'FREE'}</dd></div>
-              <div className="flex items-baseline justify-between pt-2"><dt className="font-bold">Total</dt><dd className="text-2xl font-extrabold tabular-nums">{formatINR(order.total)}</dd></div>
+              <div className="flex items-baseline justify-between rounded-xl bg-mint-50 px-4 py-3"><dt className="font-bold">{order.paymentStatus === 'PAID' ? 'Total Paid' : 'Total'}</dt><dd className="text-2xl font-extrabold tabular-nums">{formatINR(order.total)}</dd></div>
             </dl>
           </section>
 
           <section className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-[1.75rem] border border-line bg-white p-5">
+            <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
               <h2 className="flex items-center gap-2 font-sans text-sm font-extrabold uppercase tracking-wider text-charcoal-500"><MapPin className="size-4" /> Delivering to</h2>
               <p className="mt-3 font-bold">{order.customer.name}</p>
               <p className="text-sm text-charcoal-700">
@@ -259,7 +245,7 @@ export default function OrderPage() {
                 <EditDeliveryAddress order={order} accessKey={key ?? undefined} onSaved={(o) => qc.setQueryData(['order', orderNumber, key], o)} />
               )}
             </div>
-            <div className="rounded-[1.75rem] border border-line bg-white p-5">
+            <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
               <h2 className="flex items-center gap-2 font-sans text-sm font-extrabold uppercase tracking-wider text-charcoal-500"><Wallet className="size-4" /> Payment</h2>
               <p className="mt-3 font-bold">{order.paymentMethodLabel}</p>
               <p className="text-sm text-charcoal-700">{order.paymentStatus === 'PAID' ? 'Paid' : order.paymentStatus === 'DEMO_PAID' ? 'Paid (demo payment — no money charged)' : order.paymentMethod === 'ONLINE' ? 'Awaiting online payment' : `Pay ${formatINR(order.total)} on delivery`}</p>
@@ -274,19 +260,16 @@ export default function OrderPage() {
         </div>
 
         <aside className="space-y-4">
-          <section className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-6" aria-labelledby="track-h">
-            <h2 id="track-h" className="mb-5 font-display text-2xl font-semibold text-forest-900">Order status</h2>
+          <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6" aria-labelledby="track-h">
+            <h2 id="track-h" className="mb-5 flex items-center gap-2 font-sans text-lg font-bold tracking-tight text-charcoal-900"><MapPin className="size-5 text-leaf-600" /> Order Tracking</h2>
             <OrderStatusTracker order={order} />
             <p className="mt-5 text-xs text-charcoal-500">Status updates come from our team as your order progresses. This page refreshes automatically.</p>
           </section>
-          <section className="rounded-[1.75rem] bg-[#f3fbf5] p-5">
+          <section className="rounded-2xl bg-mint-50 p-5">
             <p className="text-sm font-bold text-forest-900">Questions about this order?</p>
-            <Button variant="whatsapp" block className="mt-3" icon={<WhatsAppIcon className="size-5" />} onClick={share}>
-              Share order on WhatsApp
-            </Button>
-            <a href={`tel:+91${whatsapp.replace(/\D/g, '').slice(-10)}`} className="mt-3 flex items-center justify-center gap-2 text-sm font-bold text-forest-700">
-              <Phone className="size-4" /> {phoneDisplay}
-            </a>
+            <p className="mt-2 flex items-center gap-2 text-sm text-charcoal-700">
+              <Phone className="size-4 text-leaf-600" /> Call or WhatsApp <span className="select-all font-bold text-forest-800">{phoneDisplay}</span>
+            </p>
           </section>
           {order.canCancel && (
             <Button

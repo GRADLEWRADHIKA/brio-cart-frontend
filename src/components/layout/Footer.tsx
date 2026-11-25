@@ -1,10 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Clock, Mail, MapPin, Phone } from 'lucide-react';
-import { buildWhatsAppUrl } from '@shared/core';
 import { useCategories, useContact, useStoreInfo } from '@/hooks/useStoreInfo';
-import { Logo, WhatsAppIcon } from '@/components/ui/Brand';
+import { Logo } from '@/components/ui/Brand';
 import { mainCategories } from '@/utils/categories';
-import { openExternal } from '@/utils';
 
 export function Footer() {
   const { data: categories } = useCategories();
@@ -24,13 +22,9 @@ export function Footer() {
           <p className="mt-5 max-w-sm text-ivory-50/70">
             Lucknow’s neighbourhood grocery service. Fresh sabzi, fruits, dairy and daily essentials — sorted, packed and delivered every morning.
           </p>
-          <button
-            type="button"
-            onClick={() => openExternal(buildWhatsAppUrl(whatsapp, 'Hello Brio Cart, I would like to place an order.'))}
-            className="mt-6 inline-flex items-center gap-2.5 rounded-full bg-[#1fae55] px-5 py-3 font-bold text-white transition hover:bg-[#199a4a]"
-          >
-            <WhatsAppIcon className="size-5" /> Order on WhatsApp
-          </button>
+          <p className="mt-6 inline-flex items-center gap-2.5 rounded-full bg-white/10 px-5 py-3 text-sm text-ivory-50/85">
+            <Phone className="size-4 text-lime-300" /> Questions? Call or WhatsApp <span className="select-all font-bold text-white">{phoneDisplay}</span>
+          </p>
         </div>
 
         <div>

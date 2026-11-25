@@ -4,7 +4,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
-import { AlertCircle, Banknote, Clock3, CreditCard, Lock, MapPin, QrCode, ShoppingBasket, Sunrise, Tag, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Banknote, CalendarDays, ClipboardList, Clock3, CreditCard, Lock, MapPin, Plus, QrCode, ShieldCheck, ShoppingBag, ShoppingBasket, Tag, Truck, X } from 'lucide-react';
 import { addressFields, computeSplitTotals, formatINR, hasPermission, INDIAN_STATES, type PaymentMethod } from '@shared';
 import { accountApi, catalogApi, orderApi } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
@@ -15,10 +15,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCartTotals } from '@/hooks/useCartTotals';
 import { useCartValidation } from '@/hooks/useCartValidation';
 import { SlotPicker } from '@/components/checkout/SlotPicker';
-import { useStoreInfo } from '@/hooks/useStoreInfo';
+import { useContact, useStoreInfo } from '@/hooks/useStoreInfo';
 import { Checkbox, SelectField, TextAreaField, TextField } from '@/components/forms/Field';
 import { SellerSplit, TotalsTable } from '@/components/cart/CartBits';
-import { WhatsAppOrderButton } from '@/components/cart/WhatsAppOrderButton';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { EmptyState, ProductImage } from '@/components/ui/misc';
 import { cn, newIdempotencyKey } from '@/utils';
@@ -51,14 +50,15 @@ function idempotencyKeyFor(signature: string) {
   }
 }
 
-const PAYMENT_CARDS: Array<{ id: PaymentMethod; title: string; body: string; icon: typeof Banknote }> = [
-  { id: 'COD', title: 'Cash on Delivery', body: 'Pay in cash when your order arrives.', icon: Banknote },
+const PAYMENT_CARDS: Array<{ id: PaymentMethod; title: string; body: string; icon: typeof Banknote; chips?: string[] }> = [
+  { id: 'ONLINE', title: 'UPI / Credit / Debit Card / Net Banking', body: 'Pay securely online now (Google Pay, PhonePe, Paytm, cards).', icon: CreditCard, chips: ['GPay', 'PhonePe', 'Paytm', 'VISA', 'RuPay'] },
   { id: 'UPI_ON_DELIVERY', title: 'UPI on Delivery', body: 'Scan & pay with GPay, PhonePe or Paytm at your door.', icon: QrCode },
-  { id: 'ONLINE', title: 'Pay Online', body: 'UPI, cards, net banking and wallets.', icon: CreditCard },
+  { id: 'COD', title: 'Cash on Delivery (COD)', body: 'Pay in cash when your order is delivered.', icon: Banknote },
 ];
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
+  const { phoneDisplay } = useContact();
   const { user } = useAuth();
   const { data: store } = useStoreInfo();
   const { totals, orderable, lines, rules, groups } = useCartTotals();
@@ -109,9 +109,11 @@ export default function CheckoutPage() {
   const slotDays = useQuery({ queryKey: ['delivery-slots'], queryFn: () => catalogApi.deliverySlots(3), refetchInterval: 60_000 });
   const bookable = !!slotDays.data?.some((d) => d.slots.length > 0);
   const [booking, setBooking] = useState<{ slotId: string; date: string } | null>(null);
-  /** Delivery outside the city by courier: only shops that ship to the state; shipping is set later. */
-  const [courier, setCourier] = useState(false);
-  const [ship, setShip] = useState({ state: '', city: '', pincode: '' });
+  /** Delivery outside Brio Cart's areas by courier; starts on when the shopper chose such a PIN code. */
+  const [courier, setCourier] = useState(!!prefs.courier);
+  const [ship, setShip] = useState({ state: prefs.courier?.state ?? '', city: prefs.courier?.city ?? '', pincode: prefs.courier?.pincode ?? '' });
+  const etas = store?.settings.eta ?? { local: 'Next morning', city: '1–3 days', india: 'Within 7 days' };
+  const courierEta = ship.pincode.startsWith('226') ? etas.city : etas.india;
   const shipOk = !!ship.state && ship.city.trim().length >= 2 && /^[1-9]\d{5}$/.test(ship.pincode.trim());
   const courierCheck = useQuery({
     queryKey: ['courier-check', ship.state, orderable.map((l) => `${l.variantId}:${l.quantity}`).join('|')],
@@ -289,8 +291,16 @@ export default function CheckoutPage() {
 
   return (
     <div className="container-page py-8 sm:py-12">
-      <h1 className="font-display text-4xl font-semibold text-forest-900 sm:text-5xl">Checkout</h1>
-      <p className="mt-2 flex items-center gap-2 text-sm text-charcoal-500">
+      <div className="flex items-center gap-3">
+        <Link to="/cart" className="grid size-10 place-items-center rounded-full border border-line hover:bg-ivory-100" aria-label="Back to cart">
+          <ArrowLeft className="size-5" />
+        </Link>
+        <div>
+          <h1 className="font-sans text-2xl font-bold tracking-tight text-charcoal-900 sm:text-3xl">Complete Your Order</h1>
+          <p className="text-sm text-charcoal-500">Review your items, set delivery details and place your order.</p>
+        </div>
+      </div>
+      <p className="mt-4 flex items-center gap-2 text-sm text-charcoal-500">
         <Lock className="size-4" />
         {user ? `Signed in as ${user.name}` : (
           <>
@@ -301,16 +311,16 @@ export default function CheckoutPage() {
 
       {closed && (
         <p className="mt-6 flex gap-2 rounded-2xl bg-tomato-100 p-4 font-semibold text-tomato-500" role="alert">
-          <AlertCircle className="size-5 shrink-0" /> We’re not accepting new orders right now. Please message us on WhatsApp.
+          <AlertCircle className="size-5 shrink-0" /> We’re not accepting new orders right now. Please call us for help.
         </p>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-8 grid items-start gap-8 lg:grid-cols-[1fr_25rem]">
-        <div className="space-y-6">
-          <section className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby="addr-h">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 grid items-start gap-6 lg:grid-cols-[1fr_24rem]">
+        <div className="space-y-5">
+          <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6" aria-labelledby="addr-h">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="addr-h" className="flex items-center gap-2 font-display text-2xl font-semibold text-forest-900">
-                <MapPin className="size-5 text-leaf-600" /> Delivery details
+              <h2 id="addr-h" className="flex items-center gap-2 font-sans text-lg font-bold tracking-tight text-charcoal-900">
+                <MapPin className="size-5 text-leaf-600" /> Delivery Address
               </h2>
               {addresses.data && addresses.data.length > 0 && (
                 <select className="h-10 rounded-full border border-line bg-ivory-50 px-3 text-sm font-bold" defaultValue="" onChange={(e) => applyAddress(e.target.value)} aria-label="Use a saved address">
@@ -331,8 +341,8 @@ export default function CheckoutPage() {
               <TextField label="Mobile number" type="tel" inputMode="numeric" autoComplete="tel-national" prefix="+91" maxLength={14} {...register('phone')} error={errors.phone?.message} hint="We’ll call this number if we need to reach you." />
               <div className="flex gap-2 sm:col-span-2" role="radiogroup" aria-label="Where to deliver">
                 {[
-                  { on: false, label: 'In Lucknow' },
-                  { on: true, label: 'Elsewhere in India (courier)' },
+                  { on: false, label: 'Our Lucknow localities' },
+                  { on: true, label: 'Anywhere else in India (courier)' },
                 ].map((o) => (
                   <button key={o.label} type="button" role="radio" aria-checked={courier === o.on} onClick={() => chooseCourier(o.on)} className={cn('flex-1 rounded-2xl border-2 px-3 py-2.5 text-sm font-bold', courier === o.on ? 'border-forest-700 bg-mint-50' : 'border-line')}>
                     {o.label}
@@ -342,7 +352,7 @@ export default function CheckoutPage() {
               {courier ? (
                 <>
                   <p className="rounded-2xl bg-ivory-100 p-3 text-sm text-charcoal-700 sm:col-span-2">
-                    Only products from shops that ship to your state can go by courier. After the shop confirms, we’ll tell you the shipping cost and delivery date; you pay it with the order on delivery.
+                    Grocery and Handmade go by courier and usually arrive <b>{courierEta.toLowerCase()}</b>. Fresh fruit and vegetables are delivered only in our Lucknow localities. After your order is confirmed we’ll tell you the shipping cost and date; it’s added to the total.
                   </p>
                   <label className="text-sm font-bold">
                     State
@@ -399,18 +409,18 @@ export default function CheckoutPage() {
           </section>
 
           {!courier && bookable && slotDays.data && (
-            <section className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby="slot-h">
-              <h2 id="slot-h" className="flex items-center gap-2 font-display text-2xl font-semibold text-forest-900">
-                <Sunrise className="size-5 text-marigold-500" /> Delivery slot
+            <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6" aria-labelledby="slot-h">
+              <h2 id="slot-h" className="flex items-center gap-2 font-sans text-lg font-bold tracking-tight text-charcoal-900">
+                <CalendarDays className="size-5 text-leaf-600" /> Delivery Date &amp; Time Slot
               </h2>
               <p className="mb-4 mt-1 text-sm text-charcoal-500">{store?.settings.deliveryNote}</p>
               <SlotPicker days={slotDays.data} value={booking} onChange={setBooking} />
             </section>
           )}
           {!courier && !bookable && slots.length > 0 && (
-            <section className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby="slot-h">
-              <h2 id="slot-h" className="flex items-center gap-2 font-display text-2xl font-semibold text-forest-900">
-                <Sunrise className="size-5 text-marigold-500" /> Delivery slot
+            <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6" aria-labelledby="slot-h">
+              <h2 id="slot-h" className="flex items-center gap-2 font-sans text-lg font-bold tracking-tight text-charcoal-900">
+                <CalendarDays className="size-5 text-leaf-600" /> Delivery Date &amp; Time Slot
               </h2>
               <p className="mt-1 text-sm text-charcoal-500">{store?.settings.deliveryNote}</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Delivery slot">
@@ -431,9 +441,9 @@ export default function CheckoutPage() {
             const chosen = s.slots.includes(shopSlots[s.id] ?? '') ? shopSlots[s.id]! : '';
             const options = [{ value: '', title: 'Standard slot', sub: standardText || 'The delivery slot you choose above' }, ...s.slots.map((x) => ({ value: x, title: `${s.name}’s timing`, sub: x }))];
             return (
-              <section key={s.id} className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby={`shop-slot-${s.id}`}>
-                <h2 id={`shop-slot-${s.id}`} className="flex items-center gap-2 font-display text-2xl font-semibold text-forest-900">
-                  <Clock3 className="size-5 text-marigold-500" /> Delivery time for {s.name}
+              <section key={s.id} className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6" aria-labelledby={`shop-slot-${s.id}`}>
+                <h2 id={`shop-slot-${s.id}`} className="flex items-center gap-2 font-sans text-lg font-bold tracking-tight text-charcoal-900">
+                  <Clock3 className="size-5 text-leaf-600" /> Delivery time for {s.name}
                 </h2>
                 <p className="mt-1 text-sm text-charcoal-500">{s.name} also delivers at its own times. Pick the standard slot or one of the shop’s timings for its items.</p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label={`Delivery time for ${s.name}`}>
@@ -451,30 +461,41 @@ export default function CheckoutPage() {
             );
           })}
 
-          <section className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-7" aria-labelledby="pay-h">
-            <h2 id="pay-h" className="font-display text-2xl font-semibold text-forest-900">Payment</h2>
+          <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6" aria-labelledby="pay-h">
+            <h2 id="pay-h" className="flex items-center gap-2 font-sans text-lg font-bold tracking-tight text-charcoal-900">
+              <CreditCard className="size-5 text-leaf-600" /> Payment Method
+            </h2>
             <div className="mt-5 grid gap-3" role="radiogroup" aria-label="Payment method">
-              {PAYMENT_CARDS.map(({ id, title, body, icon: Icon }) => {
+              {PAYMENT_CARDS.map(({ id, title, body, icon: Icon, chips }) => {
                 const enabled = methods ? methods[id] : id !== 'ONLINE';
                 return (
                   <label
                     key={id}
                     className={cn(
-                      'flex items-center gap-4 rounded-2xl border-2 p-4 transition',
-                      !enabled ? 'cursor-not-allowed border-dashed border-line bg-ivory-100 opacity-70' : paymentMethod === id ? 'cursor-pointer border-forest-700 bg-mint-50' : 'cursor-pointer border-line hover:border-forest-700/40',
+                      'flex items-center gap-4 rounded-xl border p-3.5 transition',
+                      !enabled ? 'cursor-not-allowed border-dashed border-line bg-ivory-100 opacity-70' : paymentMethod === id ? 'cursor-pointer border-leaf-500 bg-mint-50 ring-1 ring-leaf-500' : 'cursor-pointer border-line hover:border-forest-700/40',
                     )}
                   >
                     <input type="radio" value={id} disabled={!enabled} {...register('paymentMethod')} className="size-4 accent-forest-700" />
-                    <span className={cn('grid size-11 shrink-0 place-items-center rounded-xl', enabled ? 'bg-mint-100 text-forest-700' : 'bg-ivory-200 text-charcoal-400')}>
+                    <span className={cn('grid size-10 shrink-0 place-items-center rounded-lg', enabled ? 'bg-mint-100 text-forest-700' : 'bg-ivory-200 text-charcoal-400')}>
                       <Icon className="size-5" />
                     </span>
-                    <span>
-                      <span className="flex items-center gap-2 font-bold">
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2 text-sm font-bold">
                         {title}
-                        {id === 'ONLINE' && <span className={cn('rounded-full px-2 py-0.5 text-[0.65rem] font-extrabold uppercase tracking-wider', enabled ? 'bg-turmeric-100 text-[#6b4500]' : 'bg-ivory-200 text-charcoal-500')}>{enabled ? 'Demo' : 'Coming soon'}</span>}
+                        {id === 'ONLINE' && <span className={cn('rounded-full px-2 py-0.5 text-[0.65rem] font-extrabold uppercase tracking-wider', enabled ? 'bg-turmeric-100 text-[#6b4500]' : 'bg-ivory-200 text-charcoal-500')}>{enabled ? 'Test mode' : 'Coming soon'}</span>}
                       </span>
-                      <span className="text-sm text-charcoal-500">{body}</span>
+                      <span className="block text-xs text-charcoal-500">{body}</span>
                     </span>
+                    {chips && enabled && (
+                      <span className="hidden shrink-0 flex-wrap justify-end gap-1 sm:flex">
+                        {chips.map((c) => (
+                          <span key={c} className="rounded border border-line bg-white px-1.5 py-0.5 text-[0.62rem] font-extrabold text-charcoal-700">
+                            {c}
+                          </span>
+                        ))}
+                      </span>
+                    )}
                   </label>
                 );
               })}
@@ -484,8 +505,15 @@ export default function CheckoutPage() {
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-36" aria-label="Order review">
-          <div className="rounded-[1.75rem] border border-line bg-white p-5 sm:p-6">
-            <h2 className="font-display text-2xl font-semibold text-forest-900">Review order</h2>
+          <div className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-sans text-lg font-bold tracking-tight text-charcoal-900">
+                Your Cart <span className="text-sm font-medium text-charcoal-500">({lines.length} {lines.length === 1 ? 'item' : 'items'})</span>
+              </h2>
+              <Link to="/shop" className="inline-flex items-center gap-1 rounded-full bg-forest-800 px-3 py-1.5 text-xs font-bold text-white hover:bg-forest-700">
+                <Plus className="size-3.5" /> Add More Items
+              </Link>
+            </div>
             <ul className="mt-4 max-h-64 space-y-3 overflow-y-auto pr-1">
               {lines.map((l) => (
                 <li key={l.variantId} className={cn('flex items-center gap-3', l.issue && 'opacity-50')}>
@@ -502,7 +530,10 @@ export default function CheckoutPage() {
               ))}
             </ul>
             <div className="mt-5 border-t border-line pt-5">
-              <div className="mb-4">
+              <h3 className="mb-3 flex items-center gap-2 font-sans text-base font-bold text-charcoal-900">
+                <Tag className="size-4 text-leaf-600" /> Apply Coupon
+              </h3>
+              <div className="mb-5">
                 {couponOk ? (
                   <div className="flex items-center gap-2 rounded-2xl border-2 border-dashed border-leaf-500 bg-mint-50 px-3 py-2.5">
                     <Tag className="size-4 text-leaf-600" />
@@ -533,6 +564,9 @@ export default function CheckoutPage() {
                 )}
                 {couponError && <p className="mt-1.5 text-xs font-semibold text-tomato-500" role="alert">{couponError}</p>}
               </div>
+              <h3 className="mb-3 flex items-center gap-2 border-t border-line pt-5 font-sans text-base font-bold text-charcoal-900">
+                <ClipboardList className="size-4 text-leaf-600" /> Order Summary
+              </h3>
               <SellerSplit groups={shown.groups} className="mb-4" />
               <TotalsTable totals={shownTotals} deliveryLabel={courier ? 'Set after the shop confirms' : undefined} />
               {courier && <p className="mt-2 text-xs text-charcoal-500" data-testid="shipping-later">Shipping cost: we’ll tell you after the shop confirms. It’s added to the total and paid on delivery.</p>}
@@ -550,7 +584,19 @@ export default function CheckoutPage() {
               </p>
             )}
 
-            <div className="mt-5 rounded-2xl bg-ivory-100 p-4">
+            {(courier || slotText) && (
+              <p className="mt-5 flex items-center gap-3 rounded-xl bg-mint-50 p-3" data-testid="eta">
+                <span className="grid size-9 place-items-center rounded-lg bg-mint-100 text-forest-700">
+                  <Truck className="size-4" />
+                </span>
+                <span className="text-sm">
+                  <span className="block text-xs text-charcoal-500">Estimated Delivery</span>
+                  <span className="font-bold text-charcoal-900">{courier ? `${courierEta} by courier${ship.city ? ` to ${ship.city}` : ''}` : slotText}</span>
+                </span>
+              </p>
+            )}
+
+            <div className="mt-4 rounded-xl bg-ivory-100 p-4">
               <Checkbox
                 label={`I confirm my order of ${formatINR(shownTotals.total)}`}
                 description={`${courier ? `By courier to ${ship.city || 'your city'}${ship.state ? `, ${INDIAN_STATES.find(([c]) => c === ship.state)?.[1] ?? ''}` : ''}; delivery date and shipping cost follow after the shop confirms` : `To be delivered${areaName ? ` in ${areaName}` : ''}${slotText ? `, ${slotText}` : ''}`}. Payment: ${PAYMENT_CARDS.find((p) => p.id === paymentMethod)?.title ?? ''}.`}
@@ -561,20 +607,20 @@ export default function CheckoutPage() {
             </div>
 
             <Button type="submit" size="lg" block className="mt-5" loading={submitting} disabled={(!courier && belowMin) || !!closed || validation.loading || orderable.length === 0 || (courier && (!shipOk || courierIssues.length > 0 || courierCheck.isFetching))}>
-              {submitting ? 'Placing order…' : paymentMethod === 'ONLINE' ? `Continue to payment · ${formatINR(shownTotals.total)}` : `Place order · ${formatINR(shownTotals.total)}`}
+              <ShoppingBag className="size-5" />
+              {submitting ? 'Placing order…' : paymentMethod === 'ONLINE' ? `Continue to Payment (${formatINR(shownTotals.total)})` : `Place Order (${formatINR(shownTotals.total)})`}
+              {!submitting && <ArrowRight className="size-5" />}
             </Button>
-            <p className="mt-3 text-center text-xs text-charcoal-500">
+            <p className="mt-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-charcoal-700">
+              <ShieldCheck className="size-4 text-leaf-600" /> 100% Secure Payments
+            </p>
+            <p className="mt-1 text-center text-xs text-charcoal-500">
               By placing this order you agree to our <Link to="/terms" className="underline">terms</Link> and <Link to="/privacy" className="underline">privacy policy</Link>.
             </p>
           </div>
-          <WhatsAppOrderButton
-            lines={orderable}
-            totals={totals}
-            customerName={watched.name}
-            areaName={areaName}
-            address={watched.house && watched.street ? [watched.house, watched.street, watched.landmark, areaName].filter(Boolean).join(', ') : undefined}
-            className="rounded-[1.75rem] bg-[#f3fbf5] p-4"
-          />
+          <p className="rounded-2xl bg-mint-50 p-4 text-sm text-charcoal-700">
+            Questions about your order? Call or WhatsApp <span className="select-all font-bold text-forest-800">{phoneDisplay}</span>
+          </p>
         </aside>
       </form>
     </div>
