@@ -16,6 +16,16 @@ export function sectionOfRootSlug(slug: string | null | undefined): Section {
   return 'GROCERY';
 }
 
+/**
+ * Section from a category and its parents (any order). Fresh produce categories count as Fresh even in a
+ * store that hasn't grouped them under "Fresh" yet (fresh-vegetables, exotic-fruits, salad-bowl, ...).
+ */
+export function sectionOfChain(slugs: string[]): Section {
+  if (slugs.includes('handmade')) return 'HANDMADE';
+  if (slugs.some((s) => s === 'fresh' || s === 'salad-bowl' || s === 'seasonal' || /^(fresh|exotic)-/.test(s))) return 'FRESH';
+  return 'GROCERY';
+}
+
 // ---------- Where a product can be delivered ----------
 
 /**
